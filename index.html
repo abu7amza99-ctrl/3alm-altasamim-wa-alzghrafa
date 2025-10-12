@@ -13,8 +13,8 @@
 </head>
 <body>
 
-  <!-- خلفية التطبيق -->
-  <div class="app-bg" style="background-image:url('assets/bg.png')" aria-hidden="true"></div>
+  <!-- خلفية التطبيق (من assets/bg.png) -->
+  <div class="app-bg" aria-hidden="true"></div>
 
   <!-- رسالة الترحيب (أبو حمزة) -->
   <div id="welcomeModal" class="welcome-modal" role="dialog" aria-label="رسالة ترحيب">
@@ -26,15 +26,15 @@
     </div>
   </div>
 
-  <!-- الشريط العلوي: خلفيته من shbg.png كما طلبت -->
-  <header id="topbar" class="topbar" style="background-image:url('assets/shbg.png')">
+  <!-- الشريط العلوي: الخلفية تُحمّل من assets/shbg.png عبر CSS -->
+  <header id="topbar" class="topbar" role="banner" aria-label="شريط علوي">
     <div class="topbar-left">
       <button id="controlBtn" class="icon-btn" title="لوحة التحكم" aria-label="لوحة التحكم">
         <img src="assets/sitting.png" alt="لوحة التحكم">
       </button>
     </div>
 
-    <div class="topbar-center" role="banner" aria-label="شعار التطبيق">
+    <div class="topbar-center" role="presentation" aria-label="شعار التطبيق">
       <img class="app-logo" src="assets/abu7amza.png" alt="لوغو">
       <div class="app-title">عالم التصاميم والزخرفة</div>
     </div>
@@ -49,7 +49,7 @@
   <!-- القائمة الجانبية للأقسام -->
   <aside id="sideNav" class="side-nav hidden" role="navigation" aria-hidden="true">
     <button id="closeSide" class="close-side" aria-label="اغلاق القائمة">✕</button>
-    <ul class="side-list" role="menu">
+    <ul class="side-list" role="menu" aria-label="قائمة الأقسام">
       <li class="side-item active" data-target="home" role="menuitem">الصفحة الرئيسية</li>
       <li class="side-item" data-target="fontDeco" role="menuitem">زخرفة الخطوط</li>
       <li class="side-item" data-target="nameDeco" role="menuitem">زخرفة الأسماء</li>
@@ -63,7 +63,7 @@
     <!-- الصفحة الرئيسية -->
     <section id="home" class="page active" aria-labelledby="homeTitle">
       <div class="panel">
-        <h2 id="homeTitle" class="section-title">الصفحة الرئيسية — بوت التصاميم</h2>
+        <h2 id="homeTitle" class="section-title">الصفحة الرئيسية — معرض التصاميم</h2>
 
         <div class="search-row">
           <input id="fileSearch" class="input" placeholder="ابحث باسم الملف أو اسم الصورة..." aria-label="بحث" />
@@ -174,7 +174,7 @@
           <h4>مظهر التطبيق</h4>
           <label for="primaryColor">اللون الرئيسي</label>
           <input id="primaryColor" type="color" value="#d4af37" />
-          <label for="uploadFonts">رفع خطوط (ttf, otf, woff)</label>
+          <label for="uploadFonts">رفع خطوط (ttf, otf, woff, woff2)</label>
           <input id="uploadFonts" type="file" accept=".ttf,.otf,.woff,.woff2" multiple />
         </section>
 
@@ -228,8 +228,8 @@
 
   <footer class="footer-note">مناسب لعرض الجوال • ذهبي وأبيض ناعم • تم الإعداد بخط Cairo</footer>
 
-  <!-- سكربتات: جزئين -->
-  <script src="script.js" defer></script>
+  <!-- scripts: جزئين نهائيين -->
+  <script src="script-part1.js" defer></script>
+  <script src="script-part2.js" defer></script>
 </body>
-            </html>
-
+  </html>
