@@ -1,0 +1,84 @@
+/* style.css
+   ألوان: ذهبي و أبيض ناعم — تصميم ملائم للهاتف وRTL
+*/
+
+/* خطوط: نستخدم Reem Kufi كافتراضي */
+@import url('https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;600;700&display=swap');
+
+:root{
+  --gold: #d4af37;
+  --gold-dark: #b88723;
+  --gold-20: rgba(212,175,55,0.20); /* شفافية 20% */
+  --white: #ffffff;
+  --muted: #6b6b6b;
+  --bg: #fbf9f6;
+  --radius: 14px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0;font-family:'Reem Kufi',sans-serif;direction:rtl;background:var(--bg);color:#111}
+a{color:inherit;text-decoration:none}
+
+/* الخلفية العامة */
+.app-bg{
+  position:fixed;inset:0;background-size:cover;background-position:center;filter:blur(2px) contrast(.95);
+  z-index:0;
+}
+
+/* شريط علوي */
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.85));
+  border-bottom:1px solid rgba(0,0,0,0.06);box-shadow:var(--shadow);
+}
+.topbar .icon-btn{background:transparent;border:0;padding:6px;border-radius:8px;cursor:pointer}
+.topbar img{display:block}
+.topbar .app-logo{width:44px;height:44px;border-radius:8px}
+.topbar .app-title{font-size:18px;color:var(--gold);padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.12);}
+
+/* side nav */
+.side-nav{position:fixed;top:70px;right:12px;width:250px;background:rgba(255,255,255,0.03);border-radius:12px;padding:10px;box-shadow:var(--shadow);z-index:60}
+.side-nav.hidden{display:none}
+.side-list{list-style:none;padding:0;margin:0}
+.side-item{padding:10px;border-radius:8px;margin-bottom:6px;background:linear-gradient(180deg, rgba(212,175,55,0.06), rgba(255,255,255,0.01));color:#111;cursor:pointer}
+
+/* المحتوى */
+.main-content{position:relative;z-index:10;max-width:960px;margin:16px auto;padding:14px}
+.panel{background:linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.85));padding:14px;border-radius:12px;box-shadow:var(--shadow)}
+.section-title{color:var(--gold);margin:10px 0;font-weight:700}
+
+/* عناصر مشتركة */
+.input{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);margin:8px 0}
+.btn{padding:8px 12px;border-radius:10px;border:0;background:#fff;color:#111;cursor:pointer;margin-left:6px}
+.btn.primary{background:var(--gold);color:#111;font-weight:700}
+.icon-btn img{width:36px;height:36px}
+
+/* grid */
+.grid{display:grid;gap:10px}
+.gallery-grid{grid-template-columns: repeat(auto-fill,minmax(120px,1fr))}
+.name-grid{grid-template-columns: repeat(auto-fill,minmax(220px,1fr))}
+
+/* بطاقات النتائج */
+.result-card{background:linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.95));padding:8px;border-radius:10px;display:flex;flex-direction:column;align-items:center}
+.result-card img{max-width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:8px}
+.result-actions{display:flex;gap:8px;width:100%;justify-content:center}
+
+/* معاينة زخرفة الخط */
+.preview-box{min-height:120px;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.98));font-size:28px;color:var(--gold);font-weight:700}
+
+/* لوحة التحكم (مودال ذهبي شفاف 20%) */
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:120}
+.modal.hidden{display:none}
+.control-inner{width:94%;max-width:920px;background:linear-gradient(180deg,var(--gold-20), rgba(255,255,255,0.03));padding:14px;border-radius:14px;box-shadow:var(--shadow);position:relative}
+.modal-close{position:absolute;left:14px;top:10px;border:0;background:transparent;font-size:20px;cursor:pointer}
+
+/* كروت ذهبية */
+.gold-card{background:linear-gradient(180deg, rgba(212,175,55,0.06), rgba(255,255,255,0.03));padding:10px;border-radius:10px;border:1px solid rgba(212,175,55,0.12)}
+
+/* responsive */
+@media (max-width:720px){
+  .gallery-grid{grid-template-columns: repeat(2,1fr)}
+  .name-grid{grid-template-columns: repeat(1,1fr)}
+  .side-nav{width:86%;right:6px;top:72px}
+  .control-inner{max-width:96%}
+}
