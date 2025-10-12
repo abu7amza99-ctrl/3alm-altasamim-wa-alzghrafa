@@ -1,566 +1,476 @@
-/* script.js
-   ملف موحّد ونهائي — يجمع وظائف الجزئين
-   - ترحيب (Start)
-   - Sidebar navigation
-   - لوحة تحكم بمصادقة وميزة تغيير كلمة المرور
-   - رفع/حفظ الصور، الخطوط، التلبيسات، الستايلات (localStorage)
-   - تنزيل الصور، OCR placeholder (يدعم Tesseract إذا أضفته)
-   - يصلح مشكلة عرض كلمة المرور الصريحة ويخفيها
+/* script-part1.js
+   جزء 1/2 — واجهة، ترحيب، الشريط، sidebar، فتح لوحة التحكم (مصادقة مرتبطة بجزء2)
 */
-
-(function () {
+(function(){
   "use strict";
+  document.addEventListener('DOMContentLoaded', ()=>{
 
-  // --------------------------
-  // إعدادات عامة
-  // --------------------------
-  const DEFAULT_ADMIN_PWD = "asd321";
-  const LS_KEYS = {
-    adminPwd: "app_admin_pwd_v1",
-    userImages: "userImages",
-    clothesImages: "clothesImages",
-    uploadedFonts: "uploadedFonts",
-    nameStyles: "nameStyles",
-    contactImages: "contactImages"
-  };
+    // عناصر
+    const welcomeModal = document.getElementById('welcomeModal');
+    const startApp = document.getElementById('startApp');
+    const mainContent = document.getElementById('mainContent');
+    const sectionsToggle = document.getElementById('sectionsToggle');
+    const sideNav = document.getElementById('sideNav');
+    const closeSide = document.getElementById('closeSide');
+    const sideItems = Array.from(document.querySelectorAll('.side-item') || []);
+    const pages = Array.from(document.querySelectorAll('.page') || []);
+    const controlBtn = document.getElementById('controlBtn');
+    const controlModal = document.getElementById('controlModal');
+    const closeControl = document.getElementById('closeControl');
 
-  // --------------------------
-  // مساعدة حفظ/تحميل JSON
-  // --------------------------
-  function saveJSON(k, v) {
-    try { localStorage.setItem(k, JSON.stringify(v)); }
-    catch (e) { console.warn("saveJSON failed", e); }
-  }
-  function loadJSON(k, def = []) {
-    try {
-      const v = localStorage.getItem(k);
-      return v ? JSON.parse(v) : def;
-    } catch (e) {
-      console.warn("loadJSON failed", e);
-      return def;
-    }
-  }
-
-  // --------------------------
-  // إخفاء أي عنصر يظهر فيه النص "asd321" (يمنع ظهور كلمة المرور بالصفحة)
-  // --------------------------
-  function hideVisibleDefaultPwd() {
-    try {
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      const nodes = [];
-      while (walker.nextNode()) {
-        const t = walker.currentNode;
-        if (t.nodeValue && t.nodeValue.includes(DEFAULT_ADMIN_PWD)) nodes.push(t);
-      }
-      nodes.forEach(n => {
-        const parent = n.parentNode;
-        if (parent) {
-          // استبدال النص بنص يخفي كلمة المرور
-          n.nodeValue = n.nodeValue.replace(new RegExp(DEFAULT_ADMIN_PWD, "g"), "••••••");
-          // لو parent يحتوي فقط هذا النص، نضيف ملاحظة مخفية بصرياً بدل النص
-          parent.setAttribute && parent.setAttribute("data-hidden-pwd", "true");
-        }
-      });
-    } catch (e) { console.warn("hideVisibleDefaultPwd error", e); }
-  }
-
-  // --------------------------
-  // ادوات DOM: تأكد من وجود العنصر
-  // --------------------------
-  function $(id) { return document.getElementById(id); }
-  function on(el, ev, fn) { if (!el) return; el.addEventListener(ev, fn); }
-
-  // --------------------------
-  // تحميل البيانات الابتدائية
-  // --------------------------
-  let userImages = loadJSON(LS_KEYS.userImages, []);
-  let clothesImages = loadJSON(LS_KEYS.clothesImages, []);
-  let uploadedFonts = loadJSON(LS_KEYS.uploadedFonts, []);
-  let nameStyles = loadJSON(LS_KEYS.nameStyles, []);
-  let contactImages = loadJSON(LS_KEYS.contactImages, []);
-
-  // --------------------------
-  // دوال العرض: معرض الصور ونتائج البحث
-  // --------------------------
-  function renderGallery() {
-    const gallery = $("gallery");
-    if (!gallery) return;
-    gallery.innerHTML = "";
-    if (!userImages.length) {
-      const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد صور مضافة بعد — استخدم لوحة التحكم لإضافة صور"; gallery.appendChild(no); return;
-    }
-    userImages.forEach(img => {
-      const card = document.createElement("div");
-      card.className = "design-card";
-      card.innerHTML = `
-        <img src="${img.data}" alt="${img.name}" />
-        <div style="margin-top:8px;font-size:0.95rem">${img.name}</div>
-        <div style="margin-top:8px">
-          <button class="btn download-btn" data-name="${img.name}">تحميل</button>
-          <button class="btn ocr-on-img" data-name="${img.name}">OCR على الصورة</button>
-        </div>`;
-      gallery.appendChild(card);
-    });
-
-    Array.from(gallery.querySelectorAll(".download-btn")).forEach(b => {
-      b.addEventListener("click", () => {
-        const nm = b.getAttribute("data-name");
-        const found = userImages.find(it => it.name === nm);
-        if (found) downloadDataURL(found.data, found.name);
-      });
-    });
-
-    Array.from(gallery.querySelectorAll(".ocr-on-img")).forEach(b => {
-      b.addEventListener("click", () => {
-        const nm = b.getAttribute("data-name");
-        const found = userImages.find(it => it.name === nm);
-        if (!found) return alert("الصورة غير موجودة");
-        document.dispatchEvent(new CustomEvent("perform:ocr", { detail: { name: nm, data: found.data } }));
-      });
-    });
-  }
-
-  window.renderResultsGrid = function (list) {
-    const resultsGrid = $("resultsGrid");
-    if (!resultsGrid) return;
-    resultsGrid.innerHTML = "";
-    if (!list || !list.length) {
-      const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد نتائج"; resultsGrid.appendChild(no); return;
-    }
-    list.forEach(item => {
-      const card = document.createElement("div"); card.className = "result-card";
-      const nm = item.name || "image";
-      card.dataset.name = nm;
-      card.innerHTML = `<img src="${item.data}" alt="${nm}" /><div style="margin-top:8px;font-size:0.95rem">${nm}</div>
-        <div style="margin-top:8px"><button class="btn download-btn" data-name="${nm}">تحميل</button></div>`;
-      resultsGrid.appendChild(card);
-    });
-    Array.from(resultsGrid.querySelectorAll(".download-btn")).forEach(b => {
-      b.addEventListener("click", () => {
-        const nm = b.getAttribute("data-name");
-        const found = userImages.find(it => it.name === nm);
-        if (found) downloadDataURL(found.data, found.name);
-      });
-    });
-  };
-
-  // --------------------------
-  // download helper
-  // --------------------------
-  function downloadDataURL(dataUrl, filename) {
-    try {
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = filename || "download.png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (e) { console.warn("download failed", e); alert("فشل التحميل"); }
-  }
-
-  // --------------------------
-  // وظائف رفع الصور/خطوط/تلبيسات/ستايلات
-  // --------------------------
-  function wireControlUploads() {
-    const uploadImages = $("uploadImages");
-    const uploadClothes = $("uploadClothes");
-    const uploadFonts = $("uploadFonts");
-    const uploadStyles = $("uploadStyles");
-
-    if (uploadImages) {
-      uploadImages.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files || []);
-        if (!files.length) return;
-        const readers = files.map(f => new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res({ name: f.name, data: e.target.result });
-          r.onerror = rej;
-          r.readAsDataURL(f);
-        }));
-        Promise.all(readers).then(list => {
-          userImages = userImages.concat(list);
-          saveJSON(LS_KEYS.userImages, userImages);
-          renderGallery();
-          alert(`تم إضافة ${list.length} صورة للمعرض`);
-          uploadImages.value = "";
-        }).catch(err => { console.warn(err); alert("فشل رفع الصور"); });
+    // إصلاح: إظهار المحتوى بعد الضغط على ابدأ
+    if (startApp && welcomeModal) {
+      startApp.addEventListener('click', ()=>{
+        welcomeModal.style.transition = 'opacity .35s ease, transform .35s ease';
+        welcomeModal.style.opacity = '0';
+        welcomeModal.style.transform = 'scale(.98)';
+        setTimeout(()=> {
+          if (welcomeModal && welcomeModal.parentNode) welcomeModal.parentNode.removeChild(welcomeModal);
+        }, 360);
+        if (mainContent) mainContent.classList.remove('hidden');
+        document.dispatchEvent(new CustomEvent('app:started'));
       });
     }
-
-    if (uploadClothes) {
-      uploadClothes.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files || []);
-        if (!files.length) return;
-        const readers = files.map(f => new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res(e.target.result);
-          r.onerror = rej;
-          r.readAsDataURL(f);
-        }));
-        Promise.all(readers).then(list => {
-          clothesImages = clothesImages.concat(list);
-          saveJSON(LS_KEYS.clothesImages, clothesImages);
-          populateClotheSelect();
-          alert(`تم رفع ${list.length} تلبيسات`);
-          uploadClothes.value = "";
-        }).catch(err => { console.warn(err); alert("فشل رفع التلبيسات"); });
-      });
-    }
-
-    if (uploadFonts) {
-      uploadFonts.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files || []);
-        if (!files.length) return;
-        const readers = files.map(f => new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = e => res({ name: f.name, data: e.target.result });
-          r.onerror = rej;
-          r.readAsDataURL(f);
-        }));
-        Promise.all(readers).then(list => {
-          const existing = loadJSON(LS_KEYS.uploadedFonts, []);
-          list.forEach(f => {
-            existing.push({ name: f.name, url: f.data });
-            try {
-              const fontFaceName = f.name.replace(/\.[^/.]+$/, "").replace(/\s+/g, "_");
-              if (!document.getElementById("font-" + fontFaceName)) {
-                const style = document.createElement("style");
-                style.id = "font-" + fontFaceName;
-                style.innerHTML = `@font-face{font-family:'${fontFaceName}';src:url('${f.data}');}`;
-                document.head.appendChild(style);
-              }
-            } catch (err) { console.warn("font register err", err); }
-          });
-          saveJSON(LS_KEYS.uploadedFonts, existing);
-          uploadedFonts = existing;
-          populateFontSelect();
-          alert(`تم رفع ${list.length} خطوط`);
-          uploadFonts.value = "";
-        }).catch(err => { console.warn(err); alert("فشل رفع الخطوط"); });
-      });
-    }
-
-    if (uploadStyles) {
-      uploadStyles.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files || []);
-        if (!files.length) return;
-        files.forEach(file => {
-          const r = new FileReader();
-          r.onload = e => {
-            try {
-              if (file.name.toLowerCase().endsWith(".json")) {
-                const parsed = JSON.parse(e.target.result);
-                nameStyles.push(parsed);
-                saveJSON(LS_KEYS.nameStyles, nameStyles);
-              } else if (file.name.toLowerCase().endsWith(".js")) {
-                nameStyles.push({ js: e.target.result, name: file.name });
-                saveJSON(LS_KEYS.nameStyles, nameStyles);
-              }
-              alert(`تم إضافة ستايل: ${file.name}`);
-            } catch (err) {
-              console.warn("style load error", err);
-              alert("فشل قراءة ملف الستايل");
-            }
-          };
-          r.readAsText(file);
-        });
-        uploadStyles.value = "";
-      });
-    }
-  }
-
-  function populateClotheSelect() {
-    const sel = $("clotheSelect");
-    if (!sel) return;
-    sel.innerHTML = "";
-    if (!clothesImages.length) {
-      const o = document.createElement("option"); o.value = ""; o.textContent = "لا توجد تلبيسات"; sel.appendChild(o); return;
-    }
-    clothesImages.forEach((d, i) => {
-      const o = document.createElement("option"); o.value = d; o.textContent = `تلبيس ${i + 1}`; sel.appendChild(o);
-    });
-  }
-
-  function populateFontSelect() {
-    const sel = $("fontSelect");
-    if (!sel) return;
-    sel.innerHTML = "";
-    const defaults = ["Cairo", "Reem Kufi", "Amiri", "Tajawal", "Noto Kufi Arabic", "El Messiri", "Changa"];
-    defaults.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; sel.appendChild(o); });
-    const up = loadJSON(LS_KEYS.uploadedFonts, []);
-    up.forEach(f => { const o = document.createElement("option"); o.value = f.url; o.textContent = f.name; sel.appendChild(o); });
-  }
-
-  // --------------------------
-  // زخرفة الأسماء (آمن) بالاعتماد على الستايلات المرفوعة
-  // --------------------------
-  function safeApplyStyle(text, style) {
-    if (!style) return text;
-    try {
-      if (typeof style === "string") return style.replace("{{text}}", text);
-      if (style.pattern && typeof style.pattern === "string") return style.pattern.replace("{{text}}", text);
-      if (style.js && typeof style.js === "string") {
-        const m = style.js.match(/pattern\s*[:=]\s*['"`]([^'"`]+)['"`]/);
-        if (m && m[1]) return m[1].replace("{{text}}", text);
-        const m2 = style.js.match(/['"`]([^'"`{]*\{\{text\}\}[^'"`]*)['"`]/);
-        if (m2 && m2[1]) return m2[1].replace("{{text}}", text);
-      }
-    } catch (e) { console.warn("safeApplyStyle", e); }
-    return text;
-  }
-
-  function renderNameResults(text) {
-    const out = $("nameResults");
-    if (!out) return;
-    out.innerHTML = "";
-    const styles = loadJSON(LS_KEYS.nameStyles, []);
-    if (!styles.length) {
-      const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد ستايلات مرفوعة بعد"; out.appendChild(no); return;
-    }
-    const limit = Math.min(styles.length, 100);
-    for (let i = 0; i < limit; i++) {
-      const s = styles[i % styles.length];
-      const res = safeApplyStyle(text, s);
-      const box = document.createElement("div"); box.className = "name-box"; box.textContent = res; out.appendChild(box);
-    }
-  }
-
-  // --------------------------
-  // OCR handler (إذا أضفت tesseract.js سيعمل)
-  // --------------------------
-  document.addEventListener("perform:ocr", async (ev) => {
-    const detail = ev.detail || {};
-    const data = detail.data;
-    if (!data) return alert("لا توجد صورة لمعالجتها");
-    if (window.Tesseract && typeof window.Tesseract.recognize === "function") {
-      try {
-        const worker = window.Tesseract.createWorker();
-        await worker.load();
-        await worker.loadLanguage("ara+eng");
-        await worker.initialize("ara+eng");
-        const { data: { text } } = await worker.recognize(data);
-        await worker.terminate();
-        alert("نتيجة OCR:\n\n" + (text || "(لا يوجد نص)"));
-      } catch (e) { console.warn(e); alert("خطأ أثناء OCR"); }
-    } else {
-      alert("OCR غير مفعل محلياً. لإضافة OCR أضف tesseract.js إلى index.html.");
-    }
-  });
-
-  // --------------------------
-  // إدارة لوحة التحكم: مصادقة و تغيير كلمة المرور
-  // --------------------------
-  function getSavedAdminPwd() {
-    const p = localStorage.getItem(LS_KEYS.adminPwd);
-    return p ? p : null;
-  }
-  function ensureAdminPwdExists() {
-    if (!getSavedAdminPwd()) localStorage.setItem(LS_KEYS.adminPwd, DEFAULT_ADMIN_PWD);
-  }
-  function setAdminPwd(newPwd) {
-    localStorage.setItem(LS_KEYS.adminPwd, newPwd);
-  }
-
-  function wireControlAuthAndChangePwd() {
-    const adminLogin = $("adminLogin");
-    const adminPass = $("adminPass");
-    const controlAuth = $("controlAuth");
-    const controlArea = $("controlArea");
-    const logoutBtn = $("logoutBtn");
-
-    // hide any visible default password text in DOM
-    hideVisibleDefaultPwd();
-
-    ensureAdminPwdExists();
-    on(adminLogin, "click", () => {
-      const val = (adminPass && adminPass.value ? adminPass.value.trim() : "");
-      const saved = getSavedAdminPwd() || DEFAULT_ADMIN_PWD;
-      if (val === saved) {
-        if (controlAuth) controlAuth.style.display = "none";
-        if (controlArea) controlArea.classList.remove("hidden");
-        document.dispatchEvent(new CustomEvent("control:authenticated"));
-      } else {
-        alert("كلمة المرور غير صحيحة");
-        if (adminPass) adminPass.value = "";
-      }
-    });
-
-    // إضافة واجهة تغيير كلمة المرور داخل controlArea (إذا الDOM يحتوي already نستخدمه)
-    const controlInner = document.querySelector(".control-inner");
-    if (controlInner) {
-      // ابحث إن كان فيه مكان لتغيير كلمة المرور أصلاً (لمنع الازدواج)
-      if (!document.getElementById("changePwdSection")) {
-        const sec = document.createElement("section");
-        sec.id = "changePwdSection";
-        sec.className = "control-section";
-        sec.innerHTML = `
-          <h4>تغيير كلمة مرور لوحة التحكم</h4>
-          <label>كلمة المرور الحالية</label>
-          <input type="password" id="curAdminPwd" class="input" placeholder="أدخل كلمة المرور الحالية" />
-          <label>كلمة المرور الجديدة</label>
-          <input type="password" id="newAdminPwd" class="input" placeholder="أدخل كلمة المرور الجديدة" />
-          <label>تأكيد كلمة المرور الجديدة</label>
-          <input type="password" id="confirmAdminPwd" class="input" placeholder="أكد كلمة المرور الجديدة" />
-          <button id="changePwdBtn" class="btn">تغيير كلمة المرور</button>
-        `;
-        // ضعها قبل أزرار الحفظ إن وجدت
-        const controlActions = document.querySelector(".control-actions");
-        if (controlActions) controlInner.insertBefore(sec, controlActions);
-        else controlInner.appendChild(sec);
-
-        // فعل الزر
-        on(document.getElementById("changePwdBtn"), "click", () => {
-          const cur = (document.getElementById("curAdminPwd").value || "").trim();
-          const nw = (document.getElementById("newAdminPwd").value || "").trim();
-          const cf = (document.getElementById("confirmAdminPwd").value || "").trim();
-          const saved = getSavedAdminPwd() || DEFAULT_ADMIN_PWD;
-          if (!cur || !nw) return alert("املأ الحقول المطلوبة");
-          if (cur !== saved) return alert("كلمة المرور الحالية غير صحيحة");
-          if (nw.length < 4) return alert("يجب أن تكون كلمة المرور الجديدة 4 أحرف على الأقل");
-          if (nw !== cf) return alert("تأكيد كلمة المرور غير مطابق");
-          setAdminPwd(nw);
-          alert("تم تغيير كلمة المرور بنجاح");
-          // افراغ الحقول
-          document.getElementById("curAdminPwd").value = "";
-          document.getElementById("newAdminPwd").value = "";
-          document.getElementById("confirmAdminPwd").value = "";
-        });
-      }
-    }
-
-    on(logoutBtn, "click", () => {
-      if (controlArea) controlArea.classList.add("hidden");
-      if (controlAuth) controlAuth.style.display = "";
-      const modal = $("controlModal");
-      if (modal) modal.classList.add("hidden");
-    });
-  }
-
-  // --------------------------
-  // Search functionality
-  // --------------------------
-  function doSearch() {
-    const qEl = $("fileSearch");
-    const q = qEl && qEl.value ? qEl.value.trim().toLowerCase() : "";
-    try {
-      const stored = loadJSON(LS_KEYS.userImages, []);
-      const filtered = stored.filter(i => (i.name || "").toLowerCase().includes(q));
-      window.renderResultsGrid(filtered);
-    } catch (e) { console.warn(e); window.renderResultsGrid([]); }
-  }
-
-  // --------------------------
-  // Event wiring (UI interactions common)
-  // --------------------------
-  function wireUI() {
-    // welcome start button
-    on($("startApp"), "click", () => {
-      const welcome = $("welcomeModal");
-      if (welcome) {
-        welcome.style.transition = "opacity .35s ease, transform .35s ease";
-        welcome.style.opacity = "0"; welcome.style.transform = "scale(.98)";
-        setTimeout(() => { if (welcome && welcome.parentNode) welcome.parentNode.removeChild(welcome); }, 360);
-      }
-      const main = $("mainContent");
-      if (main) main.classList.remove("hidden");
-      document.dispatchEvent(new CustomEvent("app:started"));
-      // refresh gallery in case uploads happened earlier
-      renderGallery();
-    });
 
     // sidebar toggle
-    on($("sectionsToggle"), "click", () => {
-      const side = $("sideNav");
-      if (!side) return;
-      side.classList.toggle("hidden");
-      side.setAttribute("aria-hidden", side.classList.contains("hidden") ? "true" : "false");
-    });
-    on($("closeSide"), "click", () => {
-      const side = $("sideNav"); if (side) { side.classList.add("hidden"); side.setAttribute("aria-hidden", "true"); }
-    });
-
-    // side navigation
-    const sideItems = Array.from(document.querySelectorAll(".side-item") || []);
-    const pages = Array.from(document.querySelectorAll(".page") || []);
-    sideItems.forEach(li => {
-      li.addEventListener("click", () => {
-        const target = li.dataset.target;
-        if (!target) return;
-        sideItems.forEach(s => s.classList.remove("active"));
-        li.classList.add("active");
-        pages.forEach(p => p.id === target ? p.classList.add("active") : p.classList.remove("active"));
-        const side = $("sideNav"); if (side) { side.classList.add("hidden"); side.setAttribute("aria-hidden", "true"); }
+    if (sectionsToggle && sideNav) {
+      sectionsToggle.addEventListener('click', ()=>{
+        sideNav.classList.toggle('hidden');
+        sideNav.setAttribute('aria-hidden', sideNav.classList.contains('hidden') ? 'true' : 'false');
       });
-    });
+    }
+    if (closeSide && sideNav) {
+      closeSide.addEventListener('click', ()=>{
+        sideNav.classList.add('hidden');
+        sideNav.setAttribute('aria-hidden','true');
+      });
+    }
+
+    // navigation between sections
+    function showSection(id){
+      pages.forEach(p => p.classList.toggle('active', p.id === id));
+    }
+    if (sideItems.length) {
+      sideItems.forEach(li => {
+        li.addEventListener('click', ()=>{
+          sideItems.forEach(i=>i.classList.remove('active'));
+          li.classList.add('active');
+          const target = li.dataset.target;
+          if (target) showSection(target);
+          if (sideNav) { sideNav.classList.add('hidden'); sideNav.setAttribute('aria-hidden','true'); }
+        });
+      });
+    }
 
     // control modal open/close
-    on($("controlBtn"), "click", () => {
-      const modal = $("controlModal");
-      if (!modal) return;
-      modal.classList.toggle("hidden");
-      modal.setAttribute("aria-hidden", modal.classList.contains("hidden") ? "true" : "false");
-      // reset auth
-      const adminPass = $("adminPass"); if (adminPass) adminPass.value = "";
-      const controlAuth = $("controlAuth"); if (controlAuth) controlAuth.style.display = "";
-      const controlArea = $("controlArea"); if (controlArea) controlArea.classList.add("hidden");
+    if (controlBtn && controlModal) {
+      controlBtn.addEventListener('click', ()=>{
+        controlModal.classList.toggle('hidden');
+        controlModal.setAttribute('aria-hidden', controlModal.classList.contains('hidden') ? 'true' : 'false');
+        // reset auth panel (controlAuth visible by default)
+        const controlAuth = document.getElementById('controlAuth');
+        const controlArea = document.getElementById('controlArea');
+        if (controlAuth) controlAuth.style.display = '';
+        if (controlArea) controlArea.classList.add('hidden');
+        const adminPass = document.getElementById('adminPass');
+        if (adminPass) adminPass.value = '';
+      });
+    }
+    if (closeControl) {
+      closeControl.addEventListener('click', ()=> {
+        if (controlModal) controlModal.classList.add('hidden');
+      });
+    }
+
+    // search button (delegated to part2)
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) searchBtn.addEventListener('click', ()=> document.dispatchEvent(new CustomEvent('ui:search')));
+
+    // ocr button info
+    const ocrBtn = document.getElementById('ocrBtn');
+    if (ocrBtn) ocrBtn.addEventListener('click', ()=> {
+      alert('لإجراء OCR: اختر صورة من "الصور المضافة" ثم اضغط زر "OCR على الصورة". لإضافة OCR محلي أضف Tesseract.js.');
     });
-    on($("closeControl"), "click", () => {
-      const modal = $("controlModal"); if (modal) modal.classList.add("hidden");
-    });
 
-    // search handlers
-    on($("searchBtn"), "click", doSearch);
-    const fileSearch = $("fileSearch");
-    if (fileSearch) fileSearch.addEventListener("keyup", (e) => { if (e.key === "Enter") doSearch(); });
+    // notify ready
+    document.dispatchEvent(new CustomEvent('ui:ready'));
 
-    // OCR request button (explains flow)
-    on($("ocrBtn"), "click", () => {
-      alert("لإجراء OCR: اختر صورة من 'الصور المضافة' ثم اضغط زر 'OCR على الصورة' في بطاقة الصورة.");
-    });
-  }
-
-  // --------------------------
-  // رابط الأحداث مع أجزاء العمل
-  // --------------------------
-  document.addEventListener("DOMContentLoaded", () => {
-    // إخفاء أي كلمة مرور ظاهرة في النص
-    hideVisibleDefaultPwd();
-
-    // تأكد من وجود كلمة مرور محفوظة
-    ensureAdminPwdExists();
-
-    // واصل تهيئة واجهة لوحة التحكم
-    wireControlUploads(); // رفع الملفات
-    populateClotheSelect();
-    populateFontSelect();
-    renderGallery();
-
-    wireUI();
-    wireControlAuthAndChangePwd();
-
-    // حدث جاهزية التطبيق
-    document.dispatchEvent(new CustomEvent("app:ready"));
   });
+})();
+/* script-part2.js
+  جزء 2/2 — وظائف لوحة التحكم، رفع الصور/الخطوط/التلبيسات/ستايلات، زخرفة الأسماء، حفظ محلي، تنزيل، إشعارات
+*/
+(function(){
+  "use strict";
+  document.addEventListener('DOMContentLoaded', ()=>{
 
-  // --------------------------
-  // حفظ تلقائي قبل الخروج
-  // --------------------------
-  window.addEventListener("beforeunload", () => {
-    saveJSON(LS_KEYS.userImages, userImages);
-    saveJSON(LS_KEYS.clothesImages, clothesImages);
-    saveJSON(LS_KEYS.uploadedFonts, uploadedFonts);
-    saveJSON(LS_KEYS.nameStyles, nameStyles);
-    saveJSON(LS_KEYS.contactImages, contactImages);
-  });
+    // --- مفاتيح ال LocalStorage والاعدادات ---
+    const DEFAULT_ADMIN_PWD = 'asd321';
+    const LS = {
+      adminPwd: 'app_admin_pwd_v2',
+      userImages: 'userImages_v2',
+      clothesImages: 'clothesImages_v2',
+      uploadedFonts: 'uploadedFonts_v2',
+      nameStyles: 'nameStyles_v2',
+      contactImages: 'contactImages_v2',
+      aboutText: 'aboutText_v2',
+      contactText: 'contactText_v2'
+    };
 
-  // --------------------------
-  // exposed helpers (optional)
-  // --------------------------
-  window.appHelper = {
-    downloadDataURL,
-    renderGallery,
-    renderResultsGrid,
-    setAdminPwd
-  };
+    // --- مساعدات حفظ وقراءة ---
+    function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){console.warn(e);} }
+    function load(k,def=[]){ try{ const s=localStorage.getItem(k); return s?JSON.parse(s):def;}catch(e){console.warn(e); return def;} }
 
-})(); // IIFE
+    // --- بيانات مخزنة محلياً ---
+    let userImages = load(LS.userImages, []);
+    let clothesImages = load(LS.clothesImages, []);
+    let uploadedFonts = load(LS.uploadedFonts, []);
+    let nameStyles = load(LS.nameStyles, []);
+    let contactImages = load(LS.contactImages, []);
+
+    // --- عناصر واجهة ---
+    const gallery = document.getElementById('gallery');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const uploadImages = document.getElementById('uploadImages');
+    const uploadClothes = document.getElementById('uploadClothes');
+    const uploadFonts = document.getElementById('uploadFonts');
+    const uploadStyles = document.getElementById('uploadStyles');
+    const fontSelect = document.getElementById('fontSelect');
+    const clotheSelect = document.getElementById('clotheSelect');
+    const gradientSelect = document.getElementById('gradientSelect');
+    const fontNameInput = document.getElementById('fontNameInput');
+    const fontPreview = document.getElementById('fontPreview');
+    const generateFont = document.getElementById('generateFont');
+    const genNameStyles = document.getElementById('genNameStyles');
+    const nameInput = document.getElementById('nameInput');
+    const nameResults = document.getElementById('nameResults');
+    const aboutEditor = document.getElementById('aboutEditor');
+    const contactEditor = document.getElementById('contactEditor');
+    const addContactImage = document.getElementById('addContactImage');
+    const contactImageFile = document.getElementById('contactImageFile');
+    const contactImageLink = document.getElementById('contactImageLink');
+    const saveControl = document.getElementById('saveControl');
+    const adminLogin = document.getElementById('adminLogin');
+    const adminPass = document.getElementById('adminPass');
+    const controlAuth = document.getElementById('controlAuth');
+    const controlArea = document.getElementById('controlArea');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // toast (إشعار ذهبي صغير حسب اختيارك 1)
+    function showToast(msg, time=2200){
+      let t = document.querySelector('.toast');
+      if(!t){ t = document.createElement('div'); t.className='toast'; document.body.appendChild(t); }
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(()=> t.classList.remove('show'), time);
+    }
+
+    // ensure admin pwd saved
+    function getAdminPwd(){ return localStorage.getItem(LS.adminPwd) || null; }
+    function ensureAdminPwd(){ if(!getAdminPwd()) localStorage.setItem(LS.adminPwd, DEFAULT_ADMIN_PWD); }
+    function setAdminPwd(p){ localStorage.setItem(LS.adminPwd, p); showToast('تم تغيير كلمة المرور'); }
+
+    ensureAdminPwd();
+
+    // hide any visible DEFAULT password text in DOM
+    (function hideDefaultPwdText(){
+      try{
+        const nodes = Array.from(document.querySelectorAll('body *'));
+        nodes.forEach(n=>{
+          if(n && n.childNodes){
+            n.childNodes.forEach(c=>{
+              if(c.nodeType===3 && c.nodeValue && c.nodeValue.includes(DEFAULT_ADMIN_PWD)){
+                c.nodeValue = c.nodeValue.replace(new RegExp(DEFAULT_ADMIN_PWD,'g'),'••••••');
+              }
+            });
+          }
+        });
+      }catch(e){console.warn(e);}
+    })();
+
+    // render gallery
+    function renderGallery(){
+      if(!gallery) return;
+      gallery.innerHTML = '';
+      if(!userImages.length){ const d=document.createElement('div'); d.className='gold-card'; d.textContent='لا توجد صور مضافة — استخدم لوحة التحكم لإضافة صور'; gallery.appendChild(d); return;}
+      userImages.forEach(img=>{
+        const card=document.createElement('div'); card.className='design-card';
+        card.innerHTML = `<img src="${img.data}" alt="${img.name}" /><div style="margin-top:8px;font-size:0.95rem">${img.name}</div>
+          <div style="margin-top:8px"><button class="btn download-btn" data-name="${img.name}">تحميل</button>
+          <button class="btn ocr-btn" data-name="${img.name}">OCR على الصورة</button></div>`;
+        gallery.appendChild(card);
+      });
+      Array.from(gallery.querySelectorAll('.download-btn')).forEach(b=>b.addEventListener('click',()=>{
+        const nm=b.getAttribute('data-name'); const found=userImages.find(i=>i.name===nm); if(found) downloadDataURL(found.data, found.name);
+      }));
+      Array.from(gallery.querySelectorAll('.ocr-btn')).forEach(b=>b.addEventListener('click',()=>{
+        const nm=b.getAttribute('data-name'); const found=userImages.find(i=>i.name===nm); if(found) document.dispatchEvent(new CustomEvent('perform:ocr',{detail:{name:nm,data:found.data}}));
+      }));
+    }
+
+    // download helper
+    function downloadDataURL(dataUrl, filename){
+      try{ const a=document.createElement('a'); a.href=dataUrl; a.download = filename||'image.png'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){console.warn(e); alert('فشل التحميل');}
+    }
+
+    // populate font select
+    function populateFontSelect(){
+      if(!fontSelect) return;
+      fontSelect.innerHTML='';
+      const defaults = ['Cairo','Reem Kufi','Amiri','Tajawal','Noto Kufi Arabic','El Messiri','Changa'];
+      defaults.forEach(f=>{ const o=document.createElement('option'); o.value=f; o.textContent=f; fontSelect.appendChild(o); });
+      const up = load(LS.uploadedFonts, []);
+      up.forEach(f=>{ const o=document.createElement('option'); o.value=f.url; o.textContent=f.name; fontSelect.appendChild(o); });
+    }
+
+    // populate clothe select
+    function populateClotheSelect(){
+      if(!clotheSelect) return;
+      clotheSelect.innerHTML='';
+      if(!clothesImages.length){ const o=document.createElement('option'); o.value=''; o.textContent='لا توجد تلبيسات'; clotheSelect.appendChild(o); return; }
+      clothesImages.forEach((d,i)=>{ const o=document.createElement('option'); o.value=d; o.textContent=`تلبيس ${i+1}`; clotheSelect.appendChild(o); });
+    }
+
+    // upload handlers
+    if(uploadImages) uploadImages.addEventListener('change', (ev)=>{
+      const files = Array.from(ev.target.files||[]);
+      if(!files.length) return;
+      const readers = files.map(f=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res({name:f.name,data:e.target.result}); r.onerror=rej; r.readAsDataURL(f); }));
+      Promise.all(readers).then(list=>{
+        userImages = userImages.concat(list); save(LS.userImages,userImages); renderGallery(); showToast('تم رفع الصور'); uploadImages.value='';
+      }).catch(e=>{console.warn(e); alert('فشل رفع الصور');});
+    });
+
+    if(uploadClothes) uploadClothes.addEventListener('change', (ev)=>{
+      const files = Array.from(ev.target.files||[]);
+      if(!files.length) return;
+      const readers = files.map(f=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsDataURL(f); }));
+      Promise.all(readers).then(list=>{
+        clothesImages = clothesImages.concat(list); save(LS.clothesImages,clothesImages); populateClotheSelect(); showToast('تم رفع التلبيسات'); uploadClothes.value='';
+      }).catch(e=>{console.warn(e); alert('فشل رفع التلبيسات');});
+    });
+
+    if(uploadFonts) uploadFonts.addEventListener('change', (ev)=>{
+      const files = Array.from(ev.target.files||[]);
+      if(!files.length) return;
+      const readers = files.map(f=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res({name:f.name,data:e.target.result}); r.onerror=rej; r.readAsDataURL(f); }));
+      Promise.all(readers).then(list=>{
+        const existing = load(LS.uploadedFonts, []);
+        list.forEach(f=>{
+          existing.push({name:f.name,url:f.data});
+          try{
+            const fontFaceName = f.name.replace(/\.[^/.]+$/,'').replace(/\s+/g,'_');
+            if(!document.getElementById('font-'+fontFaceName)){
+              const style = document.createElement('style'); style.id='font-'+fontFaceName;
+              style.innerHTML = `@font-face{font-family:'${fontFaceName}';src:url('${f.data}');}`;
+              document.head.appendChild(style);
+            }
+          }catch(err){console.warn(err);}
+        });
+        save(LS.uploadedFonts,existing); uploadedFonts = existing; populateFontSelect(); showToast('تم رفع الخطوط'); uploadFonts.value='';
+      }).catch(e=>{console.warn(e); alert('فشل رفع الخطوط');});
+    });
+
+    // upload styles (json/js)
+    if(uploadStyles) uploadStyles.addEventListener('change', (ev)=>{
+      const files = Array.from(ev.target.files||[]);
+      if(!files.length) return;
+      files.forEach(file=>{
+        const reader = new FileReader();
+        reader.onload = e=>{
+          try{
+            if(file.name.toLowerCase().endsWith('.json')){
+              const parsed = JSON.parse(e.target.result);
+              nameStyles.push(parsed); save(LS.nameStyles,nameStyles); showToast('تم إضافة ستايل JSON');
+            } else if(file.name.toLowerCase().endsWith('.js')){
+              // save JS text (no eval). We'll try to extract pattern strings safely.
+              nameStyles.push({js:e.target.result, name:file.name}); save(LS.nameStyles,nameStyles); showToast('تم إضافة ستايل JS');
+            }
+          }catch(err){console.warn(err); alert('فشل قراءة ملف الستايل');}
+        };
+        reader.readAsText(file);
+      });
+      uploadStyles.value='';
+    });
+
+    // safeApplyStyle: يحاول استخراج pattern من json/js بدون تنفيذ
+    function safeApplyStyle(text, style){
+      if(!style) return text;
+      try{
+        if(typeof style === 'string') return style.replace('{{text}}', text);
+        if(style.pattern && typeof style.pattern === 'string') return style.pattern.replace('{{text}}', text);
+        if(style.js && typeof style.js === 'string'){
+          // محاولة استخراج نص يحتوي {{text}}
+          const m = style.js.match(/['"`]([^'"`{]*\{\{text\}\}[^'"`]*)['"`]/);
+          if(m && m[1]) return m[1].replace('{{text}}', text);
+        }
+      }catch(e){console.warn(e);}
+      return text;
+    }
+
+    // generate name results
+    function renderNameResults(text){
+      if(!nameResults) return;
+      nameResults.innerHTML = '';
+      const styles = load(LS.nameStyles, []);
+      if(!styles.length){ const no=document.createElement('div'); no.className='gold-card'; no.textContent='لا توجد ستايلات مرفوعة بعد'; nameResults.appendChild(no); return; }
+      const limit = Math.min(styles.length, 100);
+      for(let i=0;i<limit;i++){
+        const s = styles[i%styles.length];
+        const out = safeApplyStyle(text, s);
+        const box = document.createElement('div'); box.className='name-box'; box.textContent = out; nameResults.appendChild(box);
+      }
+    }
+
+    // UI interactions: preview font
+    function updateFontPreview(){
+      if(!fontPreview) return;
+      const text = (fontNameInput && fontNameInput.value) ? fontNameInput.value : 'نص تجريبي';
+      fontPreview.textContent = text;
+      const f = (fontSelect && fontSelect.value) ? fontSelect.value : 'Cairo';
+      fontPreview.style.fontFamily = `${f}, sans-serif`;
+      // modes
+      const active = document.querySelector('.mode-btn.active');
+      const mode = active ? active.dataset.mode : 'solid';
+      fontPreview.style.background=''; fontPreview.style.webkitBackgroundClip=''; fontPreview.style.color='';
+      if(mode==='solid'){ const c = document.getElementById('solidColor'); fontPreview.style.color = c?c.value:'#d4af37'; }
+      else if(mode==='gradient'){ const g = gradientSelect?gradientSelect.value:''; if(g){ fontPreview.style.background=g; fontPreview.style.webkitBackgroundClip='text'; fontPreview.style.color='transparent'; } }
+      else if(mode==='clothe'){ const src = clotheSelect?clotheSelect.value:''; if(src){ fontPreview.style.background=`url('${src}') center/cover`; fontPreview.style.webkitBackgroundClip='text'; fontPreview.style.color='transparent'; } }
+    }
+
+    // wire preview inputs
+    ['fontNameInput','fontSelect','gradientSelect','clotheSelect','solidColor'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.addEventListener('input', updateFontPreview);
+    });
+    const modeBtns = Array.from(document.querySelectorAll('.mode-btn')||[]);
+    modeBtns.forEach(b=>b.addEventListener('click', ()=>{
+      modeBtns.forEach(x=>x.classList.remove('active')); b.classList.add('active'); updateFontPreview();
+    }));
+    if(generateFont) generateFont.addEventListener('click', updateFontPreview);
+
+    // gen name styles
+    if(genNameStyles && nameInput) genNameStyles.addEventListener('click', ()=> {
+      const v = (nameInput.value||'').trim();
+      if(!v) return alert('أدخل الاسم أولاً');
+      renderNameResults(v);
+    });
+
+    // contact images add
+    if(addContactImage && contactImageFile && contactImageLink) addContactImage.addEventListener('click', ()=>{
+      const f = contactImageFile.files && contactImageFile.files[0];
+      const link = (contactImageLink.value||'').trim();
+      if(!f || !link) return alert('اختر صورة وأدخل رابط');
+      const r = new FileReader();
+      r.onload = e=>{
+        contactImages.push({src:e.target.result, link}); save(LS.contactImages, contactImages); renderContactLinks(); showToast('تم إضافة صورة التواصل');
+        contactImageFile.value=''; contactImageLink.value='';
+      };
+      r.readAsDataURL(f);
+    });
+
+    function renderContactLinks(){
+      const el = document.getElementById('contactLinks');
+      if(!el) return;
+      el.innerHTML='';
+      if(!contactImages.length){ const d=document.createElement('div'); d.className='gold-card'; d.textContent='لا توجد روابط بعد'; el.appendChild(d); return; }
+      contactImages.forEach(ci=>{
+        const a = document.createElement('a'); a.href = ci.link; a.target='_blank'; a.rel='noopener noreferrer';
+        a.innerHTML = `<img src="${ci.src}" alt="contact" />`;
+        el.appendChild(a);
+      });
+    }
+
+    // save about/contact
+    if(aboutEditor) aboutEditor.value = localStorage.getItem(LS.aboutText) || (document.getElementById('aboutText')?document.getElementById('aboutText').textContent:'');
+    if(contactEditor) contactEditor.value = localStorage.getItem(LS.contactText) || '';
+    if(saveControl) saveControl.addEventListener('click', ()=> {
+      const a = aboutEditor?aboutEditor.value.trim() : '';
+      const c = contactEditor?contactEditor.value.trim() : '';
+      if(document.getElementById('aboutText') && a) document.getElementById('aboutText').textContent = a;
+      localStorage.setItem(LS.aboutText, a); localStorage.setItem(LS.contactText, c); showToast('تم حفظ التغييرات');
+    });
+
+    // admin login
+    if(adminLogin && adminPass){
+      adminLogin.addEventListener('click', ()=>{
+        const v = (adminPass.value||'').trim();
+        const saved = localStorage.getItem(LS.adminPwd) || DEFAULT_ADMIN_PWD;
+        if(v === saved){
+          if(controlAuth) controlAuth.style.display = 'none';
+          if(controlArea) controlArea.classList.remove('hidden');
+          showToast('تم تسجيل الدخول');
+          // render initial UI
+          populateClotheSelect(); populateFontSelect(); renderGallery(); renderContactLinks();
+        } else { alert('كلمة المرور غير صحيحة'); adminPass.value=''; }
+      });
+    }
+
+    // change password
+    const changeBtn = document.getElementById('changePwdBtn');
+    if(changeBtn){
+      changeBtn.addEventListener('click', ()=>{
+        const cur = (document.getElementById('curAdminPwd').value||'').trim();
+        const nw = (document.getElementById('newAdminPwd').value||'').trim();
+        const cf = (document.getElementById('confirmAdminPwd').value||'').trim();
+        const saved = localStorage.getItem(LS.adminPwd) || DEFAULT_ADMIN_PWD;
+        if(!cur||!nw) return alert('املأ الحقول المطلوبة');
+        if(cur !== saved) return alert('كلمة المرور الحالية غير صحيحة');
+        if(nw.length < 4) return alert('يجب أن تكون كلمة المرور الجديدة 4 أحرف على الأقل');
+        if(nw !== cf) return alert('تأكيد كلمة المرور غير مطابق');
+        localStorage.setItem(LS.adminPwd, nw); showToast('تم تغيير كلمة المرور بنجاح'); document.getElementById('curAdminPwd').value=''; document.getElementById('newAdminPwd').value=''; document.getElementById('confirmAdminPwd').value='';
+      });
+    }
+
+    // render initial UI and wire events
+    function init(){
+      populateClotheSelect(); populateFontSelect(); renderGallery(); renderContactLinks();
+    }
+    init();
+
+    // listen from part1 events
+    document.addEventListener('ui:ready', ()=> init());
+    document.addEventListener('ui:search', ()=> {
+      const q = (document.getElementById('fileSearch') && document.getElementById('fileSearch').value) ? document.getElementById('fileSearch').value.trim().toLowerCase() : '';
+      try{
+        const stored = load(LS.userImages, []);
+        const filtered = stored.filter(i => (i.name||'').toLowerCase().includes(q));
+        // render results
+        const rg = document.getElementById('resultsGrid');
+        if(!rg) return;
+        rg.innerHTML='';
+        if(!filtered.length){ const no=document.createElement('div'); no.className='gold-card'; no.textContent='لا توجد نتائج'; rg.appendChild(no); return;}
+        filtered.forEach(item=>{
+          const card=document.createElement('div'); card.className='result-card';
+          card.innerHTML = `<img src="${item.data}" alt="${item.name}" /><div style="margin-top:8px">${item.name}</div><div style="margin-top:8px"><button class="btn download-btn" data-name="${item.name}">تحميل</button></div>`;
+          rg.appendChild(card);
+        });
+        Array.from(rg.querySelectorAll('.download-btn')).forEach(b=>b.addEventListener('click', ()=>{ const nm=b.getAttribute('data-name'); const found = userImages.find(i=>i.name===nm); if(found) downloadDataURL(found.data, found.name); }));
+      }catch(e){ console.warn(e); }
+    });
+
+    // OCR handler (uses Tesseract if loaded)
+    document.addEventListener('perform:ocr', async (ev)=> {
+      const detail = ev.detail || {}; const data = detail.data;
+      if(!data) return alert('لا توجد صورة لمعالجتها');
+      if(window.Tesseract && typeof window.Tesseract.recognize === 'function'){
+        try{
+          const worker = window.Tesseract.createWorker();
+          await worker.load();
+          await worker.loadLanguage('ara+eng');
+          await worker.initialize('ara+eng');
+          const { data: { text } } = await worker.recognize(data);
+          await worker.terminate();
+          alert('نتيجة OCR:\n\n' + (text || '(لا يوجد نص)'));
+        }catch(err){ console.warn(err); alert('فشل معالجة OCR'); }
+      } else {
+        alert('OCR غير مفعل محليًا. لإضافة OCR أضف Tesseract.js إلى index.html.');
+      }
+    });
+
+    // save before unload
+    window.addEventListener('beforeunload', ()=> {
+      save(LS.userImages, userImages); save(LS.clothesImages, clothesImages); save(LS.uploadedFonts, uploadedFonts); save(LS.nameStyles, nameStyles); save(LS.contactImages, contactImages);
+    });
+
+  }); // DOMContentLoaded
+})();
