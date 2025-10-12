@@ -8,29 +8,26 @@
   <!-- Cairo font -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-  <!-- favicon -->
-  <link rel="icon" href="assets/abu7amza.png" type="image/png">
-
-  <!-- style -->
+  <!-- stylesheet -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- خلفية التطبيق (assets/bg.png) -->
-  <div class="app-bg" role="presentation" style="background-image:url('assets/bg.png')"></div>
+  <!-- خلفية التطبيق -->
+  <div class="app-bg" style="background-image:url('assets/bg.png')" aria-hidden="true"></div>
 
-  <!-- رسالة الترحيب - أبو حمزة (ذَهبي شفاف 20%) -->
+  <!-- رسالة الترحيب (أبو حمزة) -->
   <div id="welcomeModal" class="welcome-modal" role="dialog" aria-label="رسالة ترحيب">
     <div class="welcome-inner" role="document">
       <img src="assets/abu7amza.png" alt="شعار" class="welcome-logo">
       <h1 class="welcome-title">أهلاً بك في <span>عالم التصاميم والزخرفة</span></h1>
-      <p class="welcome-sub">تطبيق احترافي يحاكي عالم الزخرفة والتصاميم — اضغط ابدأ للولوج</p>
+      <p class="welcome-sub">تطبيق احترافي للزخرفة والتصاميم — اضغط ابدأ للولوج</p>
       <button id="startApp" class="btn primary">ابدأ الآن</button>
     </div>
   </div>
 
-  <!-- الشريط العلوي -->
-  <header class="topbar" style="background-image:url('assets/shbg.png')">
+  <!-- الشريط العلوي: خلفيته من shbg.png كما طلبت -->
+  <header id="topbar" class="topbar" style="background-image:url('assets/shbg.png')">
     <div class="topbar-left">
       <button id="controlBtn" class="icon-btn" title="لوحة التحكم" aria-label="لوحة التحكم">
         <img src="assets/sitting.png" alt="لوحة التحكم">
@@ -63,7 +60,7 @@
 
   <!-- المحتوى الرئيسي -->
   <main id="mainContent" class="main-content hidden" role="main">
-    <!-- 1. الصفحة الرئيسية -->
+    <!-- الصفحة الرئيسية -->
     <section id="home" class="page active" aria-labelledby="homeTitle">
       <div class="panel">
         <h2 id="homeTitle" class="section-title">الصفحة الرئيسية — بوت التصاميم</h2>
@@ -82,7 +79,7 @@
       </div>
     </section>
 
-    <!-- 2. زخرفة الخطوط -->
+    <!-- زخرفة الخطوط -->
     <section id="fontDeco" class="page hidden" aria-labelledby="fontTitle">
       <div class="panel">
         <h2 id="fontTitle" class="section-title">زخرفة الخطوط</h2>
@@ -121,7 +118,7 @@
       </div>
     </section>
 
-    <!-- 3. زخرفة الأسماء -->
+    <!-- زخرفة الأسماء -->
     <section id="nameDeco" class="page hidden" aria-labelledby="nameTitle">
       <div class="panel">
         <h2 id="nameTitle" class="section-title">زخرفة الأسماء</h2>
@@ -134,7 +131,7 @@
       </div>
     </section>
 
-    <!-- 4. لمحة عن التطبيق -->
+    <!-- لمحة عن التطبيق -->
     <section id="about" class="page hidden" aria-labelledby="aboutTitle">
       <div class="panel">
         <h2 id="aboutTitle" class="section-title">لمحة عن التطبيق</h2>
@@ -142,7 +139,7 @@
       </div>
     </section>
 
-    <!-- 5. اتصل بنا -->
+    <!-- اتصل بنا -->
     <section id="contact" class="page hidden" aria-labelledby="contactTitle">
       <div class="panel">
         <h2 id="contactTitle" class="section-title">اتصل بنا</h2>
@@ -161,20 +158,18 @@
     <div class="control-inner gold-modal" role="document">
       <button id="closeControl" class="modal-close" aria-label="غلق">✕</button>
 
-      <!-- شاشة الدخول لكلمة المرور -->
+      <!-- شاشة المصادقة -->
       <div id="controlAuth">
         <h3>دخول لوحة التحكم</h3>
         <label for="adminPass">كلمة المرور</label>
         <input id="adminPass" type="password" class="input" placeholder="ادخل كلمة المرور" aria-label="كلمة مرور لوحة التحكم" />
         <button id="adminLogin" class="btn primary">دخول</button>
-        <p style="font-size:0.9rem;margin-top:8px;color:#333">كلمة المرور الأساسية: <strong>asd321</strong></p>
       </div>
 
-      <!-- محتوى لوحة التحكم (يظهر بعد المصادقة) -->
+      <!-- محتوى لوحة التحكم -->
       <div id="controlArea" class="hidden">
         <h3>لوحة التحكم</h3>
 
-        <!-- مظهر التطبيق -->
         <section class="control-section">
           <h4>مظهر التطبيق</h4>
           <label for="primaryColor">اللون الرئيسي</label>
@@ -183,7 +178,6 @@
           <input id="uploadFonts" type="file" accept=".ttf,.otf,.woff,.woff2" multiple />
         </section>
 
-        <!-- إدارة الصور -->
         <section class="control-section">
           <h4>إدارة الصور</h4>
           <label for="uploadImages">رفع صور لعرض الصفحة الرئيسية (أكثر من 10 دفعة واحدة)</label>
@@ -192,7 +186,6 @@
           <input id="uploadClothes" type="file" accept="image/*" multiple />
         </section>
 
-        <!-- ستايلات زخرفة الأسماء -->
         <section class="control-section">
           <h4>ستايلات زخرفة الأسماء</h4>
           <label for="uploadStyles">رفع ملفات ستايل (.json أو .js)</label>
@@ -200,7 +193,6 @@
           <p style="font-size:0.85rem;margin-top:6px;color:#333">الملفات تُخزن محلياً وتُعرض كستايل آمن (بدون تنفيذ تلقائي).</p>
         </section>
 
-        <!-- تعديل النصوص -->
         <section class="control-section">
           <h4>تعديل المحتوى النصي</h4>
           <label for="aboutEditor">نص لمحة عن التطبيق</label>
@@ -214,6 +206,18 @@
           <button id="addContactImage" class="btn">أضف</button>
         </section>
 
+        <!-- قسم تغيير كلمة المرور داخل اللوحة -->
+        <section id="changePwdSection" class="control-section">
+          <h4>تغيير كلمة مرور لوحة التحكم</h4>
+          <label>كلمة المرور الحالية</label>
+          <input type="password" id="curAdminPwd" class="input" placeholder="أدخل كلمة المرور الحالية" />
+          <label>كلمة المرور الجديدة</label>
+          <input type="password" id="newAdminPwd" class="input" placeholder="أدخل كلمة المرور الجديدة" />
+          <label>تأكيد كلمة المرور الجديدة</label>
+          <input type="password" id="confirmAdminPwd" class="input" placeholder="أكد كلمة المرور الجديدة" />
+          <button id="changePwdBtn" class="btn">تغيير كلمة المرور</button>
+        </section>
+
         <div class="control-actions">
           <button id="saveControl" class="btn primary">حفظ التغييرات</button>
           <button id="logoutBtn" class="btn">خروج</button>
@@ -224,8 +228,8 @@
 
   <footer class="footer-note">مناسب لعرض الجوال • ذهبي وأبيض ناعم • تم الإعداد بخط Cairo</footer>
 
-  <!-- سكربتات نهائية (مقسمة جزئين كما طلبت) -->
-  <script src="script.js" defer></script>
+  <!-- سكربتات: جزئين -->
+  <script src="script-part1.js" defer></script>
+  <script src="script-part2.js" defer></script>
 </body>
-
-</html>
+            </html>
