@@ -1,345 +1,224 @@
-/* script-part1.js
-   الجزء 1/2 - واجهة، رسالة ترحيب، شريط جانبي، التنقل بين الأقسام، فتح لوحة التحكم (مصادقة)
-   نسخة نهائية متوافقة مع index.html و style.css
+/* script.js
+   ملف موحّد ونهائي — يجمع وظائف الجزئين
+   - ترحيب (Start)
+   - Sidebar navigation
+   - لوحة تحكم بمصادقة وميزة تغيير كلمة المرور
+   - رفع/حفظ الصور، الخطوط، التلبيسات، الستايلات (localStorage)
+   - تنزيل الصور، OCR placeholder (يدعم Tesseract إذا أضفته)
+   - يصلح مشكلة عرض كلمة المرور الصريحة ويخفيها
 */
-(function(){
+
+(function () {
   "use strict";
-  document.addEventListener("DOMContentLoaded", () => {
 
-    // عناصر الترحيب
-    const welcomeModal = document.getElementById("welcomeModal");
-    const startApp = document.getElementById("startApp");
-    const mainContent = document.getElementById("mainContent");
+  // --------------------------
+  // إعدادات عامة
+  // --------------------------
+  const DEFAULT_ADMIN_PWD = "asd321";
+  const LS_KEYS = {
+    adminPwd: "app_admin_pwd_v1",
+    userImages: "userImages",
+    clothesImages: "clothesImages",
+    uploadedFonts: "uploadedFonts",
+    nameStyles: "nameStyles",
+    contactImages: "contactImages"
+  };
 
-    if (startApp && welcomeModal) {
-      startApp.addEventListener("click", () => {
-        // إخفاء أنيق
-        welcomeModal.style.transition = "opacity .35s ease, transform .35s ease";
-        welcomeModal.style.opacity = "0";
-        welcomeModal.style.transform = "scale(.98)";
-        setTimeout(() => {
-          if (welcomeModal && welcomeModal.parentNode) welcomeModal.parentNode.removeChild(welcomeModal);
-        }, 360);
-        if (mainContent) mainContent.classList.remove("hidden");
-        // notify app ready (part2 will attach)
-        document.dispatchEvent(new CustomEvent("app:started"));
-      });
+  // --------------------------
+  // مساعدة حفظ/تحميل JSON
+  // --------------------------
+  function saveJSON(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); }
+    catch (e) { console.warn("saveJSON failed", e); }
+  }
+  function loadJSON(k, def = []) {
+    try {
+      const v = localStorage.getItem(k);
+      return v ? JSON.parse(v) : def;
+    } catch (e) {
+      console.warn("loadJSON failed", e);
+      return def;
     }
+  }
 
-    // Sidebar toggle
-    const sectionsToggle = document.getElementById("sectionsToggle");
-    const sideNav = document.getElementById("sideNav");
-    const closeSide = document.getElementById("closeSide");
-
-    if (sectionsToggle && sideNav) {
-      sectionsToggle.addEventListener("click", () => {
-        sideNav.classList.toggle("hidden");
-        sideNav.setAttribute("aria-hidden", sideNav.classList.contains("hidden") ? "true" : "false");
-      });
-    }
-    if (closeSide && sideNav) {
-      closeSide.addEventListener("click", () => {
-        sideNav.classList.add("hidden");
-        sideNav.setAttribute("aria-hidden", "true");
-      });
-    }
-
-    // Navigation between sections
-    const sideItems = Array.from(document.querySelectorAll(".side-item"));
-    const pages = Array.from(document.querySelectorAll(".page"));
-
-    function showSectionById(id) {
-      pages.forEach((p) => {
-        if (p.id === id) p.classList.add("active");
-        else p.classList.remove("active");
-      });
-    }
-
-    if (sideItems.length) {
-      sideItems.forEach((li) => {
-        li.addEventListener("click", () => {
-          const target = li.dataset.target;
-          if (!target) return;
-          sideItems.forEach((s) => s.classList.remove("active"));
-          li.classList.add("active");
-          showSectionById(target);
-          // close sidebar on mobile
-          if (sideNav) {
-            sideNav.classList.add("hidden");
-            sideNav.setAttribute("aria-hidden", "true");
-          }
-          // notify selection (part2 can react)
-          document.dispatchEvent(new CustomEvent("section:changed", { detail: { section: target } }));
-        });
-      });
-    }
-
-    // Control modal and auth
-    const controlBtn = document.getElementById("controlBtn");
-    const controlModal = document.getElementById("controlModal");
-    const closeControl = document.getElementById("closeControl");
-    const adminPass = document.getElementById("adminPass");
-    const adminLogin = document.getElementById("adminLogin");
-    const controlAuth = document.getElementById("controlAuth");
-    const controlArea = document.getElementById("controlArea");
-    const logoutBtn = document.getElementById("logoutBtn");
-
-    if (controlBtn && controlModal) {
-      controlBtn.addEventListener("click", () => {
-        controlModal.classList.toggle("hidden");
-        controlModal.setAttribute("aria-hidden", controlModal.classList.contains("hidden") ? "true" : "false");
-        if (!controlModal.classList.contains("hidden")) {
-          // reset auth view
-          if (controlAuth) controlAuth.style.display = "";
-          if (controlArea) controlArea.classList.add("hidden");
-          if (adminPass) adminPass.value = "";
+  // --------------------------
+  // إخفاء أي عنصر يظهر فيه النص "asd321" (يمنع ظهور كلمة المرور بالصفحة)
+  // --------------------------
+  function hideVisibleDefaultPwd() {
+    try {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) {
+        const t = walker.currentNode;
+        if (t.nodeValue && t.nodeValue.includes(DEFAULT_ADMIN_PWD)) nodes.push(t);
+      }
+      nodes.forEach(n => {
+        const parent = n.parentNode;
+        if (parent) {
+          // استبدال النص بنص يخفي كلمة المرور
+          n.nodeValue = n.nodeValue.replace(new RegExp(DEFAULT_ADMIN_PWD, "g"), "••••••");
+          // لو parent يحتوي فقط هذا النص، نضيف ملاحظة مخفية بصرياً بدل النص
+          parent.setAttribute && parent.setAttribute("data-hidden-pwd", "true");
         }
       });
+    } catch (e) { console.warn("hideVisibleDefaultPwd error", e); }
+  }
+
+  // --------------------------
+  // ادوات DOM: تأكد من وجود العنصر
+  // --------------------------
+  function $(id) { return document.getElementById(id); }
+  function on(el, ev, fn) { if (!el) return; el.addEventListener(ev, fn); }
+
+  // --------------------------
+  // تحميل البيانات الابتدائية
+  // --------------------------
+  let userImages = loadJSON(LS_KEYS.userImages, []);
+  let clothesImages = loadJSON(LS_KEYS.clothesImages, []);
+  let uploadedFonts = loadJSON(LS_KEYS.uploadedFonts, []);
+  let nameStyles = loadJSON(LS_KEYS.nameStyles, []);
+  let contactImages = loadJSON(LS_KEYS.contactImages, []);
+
+  // --------------------------
+  // دوال العرض: معرض الصور ونتائج البحث
+  // --------------------------
+  function renderGallery() {
+    const gallery = $("gallery");
+    if (!gallery) return;
+    gallery.innerHTML = "";
+    if (!userImages.length) {
+      const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد صور مضافة بعد — استخدم لوحة التحكم لإضافة صور"; gallery.appendChild(no); return;
     }
-
-    if (closeControl) {
-      closeControl.addEventListener("click", () => {
-        if (controlModal) controlModal.classList.add("hidden");
-      });
-    }
-
-    if (adminLogin && adminPass && controlAuth && controlArea) {
-      adminLogin.addEventListener("click", () => {
-        const v = (adminPass.value || "").trim();
-        if (v === "asd321") {
-          controlAuth.style.display = "none";
-          controlArea.classList.remove("hidden");
-          // signal authenticated to part2
-          document.dispatchEvent(new CustomEvent("control:authenticated"));
-        } else {
-          alert("كلمة المرور غير صحيحة");
-          adminPass.value = "";
-        }
-      });
-    }
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", () => {
-        if (controlArea) controlArea.classList.add("hidden");
-        if (controlAuth) controlAuth.style.display = "";
-        if (controlModal) controlModal.classList.add("hidden");
-      });
-    }
-
-    // Search local images (reads from localStorage updated by part2)
-    const fileSearch = document.getElementById("fileSearch");
-    const searchBtn = document.getElementById("searchBtn");
-    const resultsGrid = document.getElementById("resultsGrid");
-
-    window.renderResultsGrid = function(list) {
-      if (!resultsGrid) return;
-      resultsGrid.innerHTML = "";
-      if (!list || !list.length) {
-        const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد نتائج"; resultsGrid.appendChild(no); return;
-      }
-      list.forEach((item) => {
-        const card = document.createElement("div"); card.className = "result-card";
-        const nm = item.name || "image";
-        card.dataset.name = nm;
-        card.innerHTML = `<img src="${item.data}" alt="${nm}" /><div style="margin-top:8px;font-size:0.95rem">${nm}</div>
-          <div style="margin-top:8px"><button class="btn download-btn" data-name="${nm}">تحميل</button></div>`;
-        resultsGrid.appendChild(card);
-      });
-      Array.from(resultsGrid.querySelectorAll(".download-btn")).forEach((b) => {
-        b.addEventListener("click", () => {
-          const nm = b.getAttribute("data-name");
-          document.dispatchEvent(new CustomEvent("request:download", { detail: { name: nm } }));
-        });
-      });
-    };
-
-    function doSearch() {
-      const q = (fileSearch && fileSearch.value) ? fileSearch.value.trim().toLowerCase() : "";
-      try {
-        const stored = JSON.parse(localStorage.getItem("userImages") || "[]");
-        const filtered = stored.filter((i) => (i.name || "").toLowerCase().includes(q));
-        window.renderResultsGrid(filtered);
-      } catch (e) {
-        console.warn("search error", e);
-        window.renderResultsGrid([]);
-      }
-    }
-
-    if (searchBtn) searchBtn.addEventListener("click", doSearch);
-    if (fileSearch) fileSearch.addEventListener("keyup", (e) => { if (e.key === "Enter") doSearch(); });
-
-    // OCR button - asks part2 to run OCR on chosen image (part2 manages actual OCR)
-    const ocrBtn = document.getElementById("ocrBtn");
-    if (ocrBtn) {
-      ocrBtn.addEventListener("click", () => {
-        alert("لاستخراج نص بواسطة OCR: اختر صورة من 'الصور المضافة' ثم اضغط زر 'OCR على الصورة' في بطاقة الصورة.");
-        document.dispatchEvent(new CustomEvent("request:ocr"));
-      });
-    }
-
-    // app ready event so part2 can initialize UI
-    document.dispatchEvent(new CustomEvent("app:ready"));
-    document.dispatchEvent(new CustomEvent("app:loaded"));
-
-  });
-})();
-/* script-part2.js
-   الجزء 2/2 — رفع وإدارة الصور/خطوط/تلبيسات/ستايلات، توليد زخارف، حفظ محلي، تنزيل، OCR (اختياري)
-   نهائي وآمن (بدون eval). متوافق مع index.html و style.css و script-part1.js
-*/
-(function(){
-  "use strict";
-  document.addEventListener("DOMContentLoaded", ()=> {
-
-    // --- عناصر لوحة التحكم وواجهة ---
-    const uploadImages = document.getElementById("uploadImages");
-    const uploadClothes = document.getElementById("uploadClothes");
-    const uploadFonts = document.getElementById("uploadFonts");
-    const uploadStyles = document.getElementById("uploadStyles");
-    const addContactImageBtn = document.getElementById("addContactImage");
-    const contactImageFile = document.getElementById("contactImageFile");
-    const contactImageLink = document.getElementById("contactImageLink");
-    const aboutEditor = document.getElementById("aboutEditor");
-    const contactEditor = document.getElementById("contactEditor");
-    const saveControl = document.getElementById("saveControl");
-
-    const gallery = document.getElementById("gallery");
-    const resultsGrid = document.getElementById("resultsGrid");
-    const fontSelect = document.getElementById("fontSelect");
-    const clotheSelect = document.getElementById("clotheSelect");
-    const gradientSelect = document.getElementById("gradientSelect");
-    const fontNameInput = document.getElementById("fontNameInput");
-    const generateFont = document.getElementById("generateFont");
-    const fontPreview = document.getElementById("fontPreview");
-    const genNameStyles = document.getElementById("genNameStyles");
-    const nameInput = document.getElementById("nameInput");
-    const nameResults = document.getElementById("nameResults");
-    const aboutText = document.getElementById("aboutText");
-    const contactLinks = document.getElementById("contactLinks");
-    const primaryColorInput = document.getElementById("primaryColor");
-
-    // --- helpers safe storage ---
-    const saveJSON = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ console.warn("saveJSON failed", e); } };
-    const loadJSON = (k,def=[]) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e){ console.warn("loadJSON failed", e); return def; } };
-
-    // --- initial data from storage ---
-    let userImages = loadJSON("userImages", []); // [{name,data}]
-    let clothesImages = loadJSON("clothesImages", []); // [dataURL]
-    let uploadedFonts = loadJSON("uploadedFonts", []); // [{name,url}]
-    let nameStyles = loadJSON("nameStyles", []); // objects or {js,name}
-    let contactImages = loadJSON("contactImages", []); // [{src,link}]
-    const uploadImagesMax = 100;
-
-    // --- render gallery (home) ---
-    function renderGallery(){
-      if(!gallery) return;
-      gallery.innerHTML = "";
-      if(!userImages.length){
-        const empty = document.createElement("div"); empty.className = "gold-card"; empty.textContent = "لا توجد صور مضافة — استخدم لوحة التحكم لإضافة صور"; gallery.appendChild(empty); return;
-      }
-      userImages.forEach((img)=>{
-        const card = document.createElement("div"); card.className = "design-card";
-        card.innerHTML = `<img src="${img.data}" alt="${img.name}" /><div style="margin-top:8px;font-size:0.95rem">${img.name}</div>
-          <div style="margin-top:8px"><button class="btn download-btn" data-name="${img.name}">تحميل</button>
-          <button class="btn ocr-on-img" data-name="${img.name}">OCR على الصورة</button></div>`;
-        gallery.appendChild(card);
-      });
-
-      // download handlers
-      Array.from(gallery.querySelectorAll(".download-btn")).forEach((b)=>{
-        b.addEventListener("click", ()=> {
-          const name = b.getAttribute("data-name");
-          const found = userImages.find(it => it.name === name);
-          if(found) downloadDataURL(found.data, found.name);
-        });
-      });
-
-      // OCR handlers (dispatch perform:ocr)
-      Array.from(gallery.querySelectorAll(".ocr-on-img")).forEach((b)=>{
-        b.addEventListener("click", ()=> {
-          const name = b.getAttribute("data-name");
-          const found = userImages.find(it => it.name === name);
-          if(!found) return alert("الصورة غير موجودة");
-          document.dispatchEvent(new CustomEvent("perform:ocr", { detail: { name: name, data: found.data } }));
-        });
-      });
-    }
-
-    // --- download helper ---
-    function downloadDataURL(dataUrl, filename){
-      try{
-        const a = document.createElement("a"); a.href = dataUrl; a.download = filename || "download.png"; document.body.appendChild(a); a.click(); a.remove();
-      } catch(e) { console.warn("download failed", e); alert("فشل التحميل"); }
-    }
-
-    // allow other parts to request downloads
-    document.addEventListener("request:download", (ev) => {
-      const name = ev.detail && ev.detail.name;
-      if(!name) return;
-      const found = userImages.find(it => it.name === name);
-      if(found) downloadDataURL(found.data, found.name);
+    userImages.forEach(img => {
+      const card = document.createElement("div");
+      card.className = "design-card";
+      card.innerHTML = `
+        <img src="${img.data}" alt="${img.name}" />
+        <div style="margin-top:8px;font-size:0.95rem">${img.name}</div>
+        <div style="margin-top:8px">
+          <button class="btn download-btn" data-name="${img.name}">تحميل</button>
+          <button class="btn ocr-on-img" data-name="${img.name}">OCR على الصورة</button>
+        </div>`;
+      gallery.appendChild(card);
     });
 
-    // --- upload images (control) ---
-    if(uploadImages){
+    Array.from(gallery.querySelectorAll(".download-btn")).forEach(b => {
+      b.addEventListener("click", () => {
+        const nm = b.getAttribute("data-name");
+        const found = userImages.find(it => it.name === nm);
+        if (found) downloadDataURL(found.data, found.name);
+      });
+    });
+
+    Array.from(gallery.querySelectorAll(".ocr-on-img")).forEach(b => {
+      b.addEventListener("click", () => {
+        const nm = b.getAttribute("data-name");
+        const found = userImages.find(it => it.name === nm);
+        if (!found) return alert("الصورة غير موجودة");
+        document.dispatchEvent(new CustomEvent("perform:ocr", { detail: { name: nm, data: found.data } }));
+      });
+    });
+  }
+
+  window.renderResultsGrid = function (list) {
+    const resultsGrid = $("resultsGrid");
+    if (!resultsGrid) return;
+    resultsGrid.innerHTML = "";
+    if (!list || !list.length) {
+      const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد نتائج"; resultsGrid.appendChild(no); return;
+    }
+    list.forEach(item => {
+      const card = document.createElement("div"); card.className = "result-card";
+      const nm = item.name || "image";
+      card.dataset.name = nm;
+      card.innerHTML = `<img src="${item.data}" alt="${nm}" /><div style="margin-top:8px;font-size:0.95rem">${nm}</div>
+        <div style="margin-top:8px"><button class="btn download-btn" data-name="${nm}">تحميل</button></div>`;
+      resultsGrid.appendChild(card);
+    });
+    Array.from(resultsGrid.querySelectorAll(".download-btn")).forEach(b => {
+      b.addEventListener("click", () => {
+        const nm = b.getAttribute("data-name");
+        const found = userImages.find(it => it.name === nm);
+        if (found) downloadDataURL(found.data, found.name);
+      });
+    });
+  };
+
+  // --------------------------
+  // download helper
+  // --------------------------
+  function downloadDataURL(dataUrl, filename) {
+    try {
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = filename || "download.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) { console.warn("download failed", e); alert("فشل التحميل"); }
+  }
+
+  // --------------------------
+  // وظائف رفع الصور/خطوط/تلبيسات/ستايلات
+  // --------------------------
+  function wireControlUploads() {
+    const uploadImages = $("uploadImages");
+    const uploadClothes = $("uploadClothes");
+    const uploadFonts = $("uploadFonts");
+    const uploadStyles = $("uploadStyles");
+
+    if (uploadImages) {
       uploadImages.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files).slice(0, uploadImagesMax);
-        if(!files.length) return;
-        const readers = files.map(f => new Promise((res,rej) => {
+        const files = Array.from(ev.target.files || []);
+        if (!files.length) return;
+        const readers = files.map(f => new Promise((res, rej) => {
           const r = new FileReader();
-          r.onload = (e) => res({ name: f.name, data: e.target.result });
+          r.onload = e => res({ name: f.name, data: e.target.result });
           r.onerror = rej;
           r.readAsDataURL(f);
         }));
         Promise.all(readers).then(list => {
           userImages = userImages.concat(list);
-          saveJSON("userImages", userImages);
+          saveJSON(LS_KEYS.userImages, userImages);
           renderGallery();
-          alert(`تم رفع ${list.length} صورة وحفظها للعرض`);
+          alert(`تم إضافة ${list.length} صورة للمعرض`);
           uploadImages.value = "";
-        }).catch(err => { console.warn("uploadImages error", err); alert("فشل رفع الصور"); });
+        }).catch(err => { console.warn(err); alert("فشل رفع الصور"); });
       });
     }
 
-    // --- upload clothes (textures) ---
-    if(uploadClothes){
+    if (uploadClothes) {
       uploadClothes.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files);
-        if(!files.length) return;
-        const readers = files.map(f => new Promise((res,rej) => {
-          const r = new FileReader(); r.onload = (e) => res(e.target.result); r.onerror = rej; r.readAsDataURL(f);
+        const files = Array.from(ev.target.files || []);
+        if (!files.length) return;
+        const readers = files.map(f => new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = e => res(e.target.result);
+          r.onerror = rej;
+          r.readAsDataURL(f);
         }));
         Promise.all(readers).then(list => {
           clothesImages = clothesImages.concat(list);
-          saveJSON("clothesImages", clothesImages);
+          saveJSON(LS_KEYS.clothesImages, clothesImages);
           populateClotheSelect();
           alert(`تم رفع ${list.length} تلبيسات`);
           uploadClothes.value = "";
-        }).catch(err => { console.warn("uploadClothes error", err); alert("فشل رفع التلبيسات"); });
+        }).catch(err => { console.warn(err); alert("فشل رفع التلبيسات"); });
       });
     }
 
-    function populateClotheSelect(){
-      if(!clotheSelect) return;
-      clotheSelect.innerHTML = "";
-      if(!clothesImages.length){
-        const o = document.createElement("option"); o.value = ""; o.textContent = "لا توجد تلبيسات"; clotheSelect.appendChild(o); return;
-      }
-      clothesImages.forEach((d,i) => {
-        const o = document.createElement("option"); o.value = d; o.textContent = `تلبيس ${i+1}`; clotheSelect.appendChild(o);
-      });
-    }
-
-    // --- upload fonts ---
-    if(uploadFonts){
+    if (uploadFonts) {
       uploadFonts.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files);
-        if(!files.length) return;
-        const readers = files.map(f => new Promise((res,rej) => {
-          const r = new FileReader(); r.onload = (e) => res({ name: f.name, data: e.target.result }); r.onerror = rej; r.readAsDataURL(f);
+        const files = Array.from(ev.target.files || []);
+        if (!files.length) return;
+        const readers = files.map(f => new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = e => res({ name: f.name, data: e.target.result });
+          r.onerror = rej;
+          r.readAsDataURL(f);
         }));
         Promise.all(readers).then(list => {
-          const existing = loadJSON("uploadedFonts", []);
+          const existing = loadJSON(LS_KEYS.uploadedFonts, []);
           list.forEach(f => {
             existing.push({ name: f.name, url: f.data });
             try {
@@ -352,258 +231,336 @@
               }
             } catch (err) { console.warn("font register err", err); }
           });
-          saveJSON("uploadedFonts", existing);
+          saveJSON(LS_KEYS.uploadedFonts, existing);
           uploadedFonts = existing;
           populateFontSelect();
           alert(`تم رفع ${list.length} خطوط`);
           uploadFonts.value = "";
-        }).catch(err => { console.warn("uploadFonts error", err); alert("فشل رفع الخطوط"); });
+        }).catch(err => { console.warn(err); alert("فشل رفع الخطوط"); });
       });
     }
 
-    // --- populate fonts select ---
-    function populateFontSelect(){
-      if(!fontSelect) return;
-      fontSelect.innerHTML = "";
-      const defaults = ["Cairo","Reem Kufi","Amiri","Tajawal","Noto Kufi Arabic","El Messiri","Changa","Segoe UI"];
-      defaults.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; fontSelect.appendChild(o); });
-      const up = loadJSON("uploadedFonts", []);
-      up.forEach(f => { const o = document.createElement("option"); o.value = f.url; o.textContent = f.name; fontSelect.appendChild(o); });
-    }
-
-    // --- upload styles (json/js) ---
-    if(uploadStyles){
+    if (uploadStyles) {
       uploadStyles.addEventListener("change", (ev) => {
-        const files = Array.from(ev.target.files);
-        if(!files.length) return;
+        const files = Array.from(ev.target.files || []);
+        if (!files.length) return;
         files.forEach(file => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
+          const r = new FileReader();
+          r.onload = e => {
             try {
               if (file.name.toLowerCase().endsWith(".json")) {
                 const parsed = JSON.parse(e.target.result);
                 nameStyles.push(parsed);
-                saveJSON("nameStyles", nameStyles);
+                saveJSON(LS_KEYS.nameStyles, nameStyles);
               } else if (file.name.toLowerCase().endsWith(".js")) {
-                // store JS text only (no execute)
                 nameStyles.push({ js: e.target.result, name: file.name });
-                saveJSON("nameStyles", nameStyles);
+                saveJSON(LS_KEYS.nameStyles, nameStyles);
               }
               alert(`تم إضافة ستايل: ${file.name}`);
             } catch (err) {
               console.warn("style load error", err);
-              alert("فشل قراءة ملف الستايل — تحقق من الصيغة");
+              alert("فشل قراءة ملف الستايل");
             }
           };
-          reader.readAsText(file);
+          r.readAsText(file);
         });
         uploadStyles.value = "";
       });
     }
+  }
 
-    nameStyles = loadJSON("nameStyles", []);
+  function populateClotheSelect() {
+    const sel = $("clotheSelect");
+    if (!sel) return;
+    sel.innerHTML = "";
+    if (!clothesImages.length) {
+      const o = document.createElement("option"); o.value = ""; o.textContent = "لا توجد تلبيسات"; sel.appendChild(o); return;
+    }
+    clothesImages.forEach((d, i) => {
+      const o = document.createElement("option"); o.value = d; o.textContent = `تلبيس ${i + 1}`; sel.appendChild(o);
+    });
+  }
 
-    // --- applyDecorationStyle (safe) ---
-    function applyDecorationStyle(text, style){
-      if(!style) return text;
+  function populateFontSelect() {
+    const sel = $("fontSelect");
+    if (!sel) return;
+    sel.innerHTML = "";
+    const defaults = ["Cairo", "Reem Kufi", "Amiri", "Tajawal", "Noto Kufi Arabic", "El Messiri", "Changa"];
+    defaults.forEach(f => { const o = document.createElement("option"); o.value = f; o.textContent = f; sel.appendChild(o); });
+    const up = loadJSON(LS_KEYS.uploadedFonts, []);
+    up.forEach(f => { const o = document.createElement("option"); o.value = f.url; o.textContent = f.name; sel.appendChild(o); });
+  }
+
+  // --------------------------
+  // زخرفة الأسماء (آمن) بالاعتماد على الستايلات المرفوعة
+  // --------------------------
+  function safeApplyStyle(text, style) {
+    if (!style) return text;
+    try {
+      if (typeof style === "string") return style.replace("{{text}}", text);
+      if (style.pattern && typeof style.pattern === "string") return style.pattern.replace("{{text}}", text);
+      if (style.js && typeof style.js === "string") {
+        const m = style.js.match(/pattern\s*[:=]\s*['"`]([^'"`]+)['"`]/);
+        if (m && m[1]) return m[1].replace("{{text}}", text);
+        const m2 = style.js.match(/['"`]([^'"`{]*\{\{text\}\}[^'"`]*)['"`]/);
+        if (m2 && m2[1]) return m2[1].replace("{{text}}", text);
+      }
+    } catch (e) { console.warn("safeApplyStyle", e); }
+    return text;
+  }
+
+  function renderNameResults(text) {
+    const out = $("nameResults");
+    if (!out) return;
+    out.innerHTML = "";
+    const styles = loadJSON(LS_KEYS.nameStyles, []);
+    if (!styles.length) {
+      const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد ستايلات مرفوعة بعد"; out.appendChild(no); return;
+    }
+    const limit = Math.min(styles.length, 100);
+    for (let i = 0; i < limit; i++) {
+      const s = styles[i % styles.length];
+      const res = safeApplyStyle(text, s);
+      const box = document.createElement("div"); box.className = "name-box"; box.textContent = res; out.appendChild(box);
+    }
+  }
+
+  // --------------------------
+  // OCR handler (إذا أضفت tesseract.js سيعمل)
+  // --------------------------
+  document.addEventListener("perform:ocr", async (ev) => {
+    const detail = ev.detail || {};
+    const data = detail.data;
+    if (!data) return alert("لا توجد صورة لمعالجتها");
+    if (window.Tesseract && typeof window.Tesseract.recognize === "function") {
       try {
-        if (typeof style === "string") return style.replace("{{text}}", text);
-        if (style.pattern && typeof style.pattern === "string") return style.pattern.replace("{{text}}", text);
-        if (style.js && typeof style.js === "string") {
-          // try extract 'pattern' string inside js text
-          const m = style.js.match(/pattern\s*[:=]\s*['"`]([^'"`]+)['"`]/);
-          if (m && m[1]) return m[1].replace("{{text}}", text);
-          const m2 = style.js.match(/['"`]([^'"`{]*\{\{text\}\}[^'"`]*)['"`]/);
-          if (m2 && m2[1]) return m2[1].replace("{{text}}", text);
-        }
-      } catch (e) { console.warn("applyDecorationStyle error", e); }
-      return text;
+        const worker = window.Tesseract.createWorker();
+        await worker.load();
+        await worker.loadLanguage("ara+eng");
+        await worker.initialize("ara+eng");
+        const { data: { text } } = await worker.recognize(data);
+        await worker.terminate();
+        alert("نتيجة OCR:\n\n" + (text || "(لا يوجد نص)"));
+      } catch (e) { console.warn(e); alert("خطأ أثناء OCR"); }
+    } else {
+      alert("OCR غير مفعل محلياً. لإضافة OCR أضف tesseract.js إلى index.html.");
     }
+  });
 
-    function renderNameResults(text){
-      if(!nameResults) return;
-      nameResults.innerHTML = "";
-      const styles = loadJSON("nameStyles", []);
-      if(!styles.length){
-        const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد ستايلات مرفوعة بعد — ارفعها من لوحة التحكم"; nameResults.appendChild(no); return;
-      }
-      const limit = Math.min(styles.length, 100);
-      for(let i=0;i<limit;i++){
-        const s = styles[i % styles.length];
-        const out = applyDecorationStyle(text, s);
-        const box = document.createElement("div"); box.className = "name-box"; box.textContent = out; nameResults.appendChild(box);
-      }
-    }
+  // --------------------------
+  // إدارة لوحة التحكم: مصادقة و تغيير كلمة المرور
+  // --------------------------
+  function getSavedAdminPwd() {
+    const p = localStorage.getItem(LS_KEYS.adminPwd);
+    return p ? p : null;
+  }
+  function ensureAdminPwdExists() {
+    if (!getSavedAdminPwd()) localStorage.setItem(LS_KEYS.adminPwd, DEFAULT_ADMIN_PWD);
+  }
+  function setAdminPwd(newPwd) {
+    localStorage.setItem(LS_KEYS.adminPwd, newPwd);
+  }
 
-    if(genNameStyles && nameInput){
-      genNameStyles.addEventListener("click", () => {
-        const v = (nameInput.value || "").trim();
-        if(!v) return alert("أدخل الاسم أولاً");
-        renderNameResults(v);
-      });
-    }
+  function wireControlAuthAndChangePwd() {
+    const adminLogin = $("adminLogin");
+    const adminPass = $("adminPass");
+    const controlAuth = $("controlAuth");
+    const controlArea = $("controlArea");
+    const logoutBtn = $("logoutBtn");
 
-    // --- contact images add & render ---
-    if(addContactImageBtn && contactImageFile && contactImageLink){
-      addContactImageBtn.addEventListener("click", () => {
-        const f = contactImageFile.files && contactImageFile.files[0];
-        const link = (contactImageLink.value || "").trim();
-        if(!f || !link) return alert("اختر صورة وأدخل رابط");
-        const r = new FileReader();
-        r.onload = (e) => {
-          contactImages = contactImages.concat([{ src: e.target.result, link }]);
-          saveJSON("contactImages", contactImages);
-          renderContactLinks();
-          alert("تم إضافة الصورة مع الرابط");
-          contactImageFile.value = ""; contactImageLink.value = "";
-        };
-        r.readAsDataURL(f);
-      });
-    }
+    // hide any visible default password text in DOM
+    hideVisibleDefaultPwd();
 
-    function renderContactLinks(){
-      if(!contactLinks) return;
-      contactLinks.innerHTML = "";
-      if(!contactImages.length){
-        const no = document.createElement("div"); no.className = "gold-card"; no.textContent = "لا توجد روابط بعد"; contactLinks.appendChild(no); return;
-      }
-      contactImages.forEach(ci => {
-        const a = document.createElement("a"); a.href = ci.link; a.target = "_blank"; a.rel="noopener noreferrer";
-        a.innerHTML = `<img src="${ci.src}" alt="contact" />`;
-        contactLinks.appendChild(a);
-      });
-    }
-    contactImages = loadJSON("contactImages", []);
-    renderContactLinks();
-
-    // --- about/contact editors load & save ---
-    if(aboutEditor) aboutEditor.value = localStorage.getItem("aboutText") || (aboutText ? aboutText.textContent : "");
-    if(contactEditor) contactEditor.value = localStorage.getItem("contactText") || "";
-    if(saveControl){
-      saveControl.addEventListener("click", () => {
-        const a = aboutEditor ? aboutEditor.value.trim() : "";
-        const c = contactEditor ? contactEditor.value.trim() : "";
-        if (aboutText && a) aboutText.textContent = a;
-        localStorage.setItem("aboutText", a);
-        localStorage.setItem("contactText", c);
-        alert("تم حفظ تعديلات لوحة التحكم");
-      });
-    }
-
-    // --- populate gradientSelect defaults ---
-    (function populateGradients(){
-      if(!gradientSelect) return;
-      const grads = [
-        "linear-gradient(90deg,#ffd700,#ff8c00)",
-        "linear-gradient(90deg,#ff9a9e,#fad0c4)",
-        "linear-gradient(90deg,#a1c4fd,#c2e9fb)",
-        "linear-gradient(90deg,#fbc2eb,#a6c1ee)",
-        "linear-gradient(90deg,#ffecd2,#fcb69f)"
-      ];
-      gradientSelect.innerHTML = "";
-      grads.forEach((g,i) => { const o = document.createElement("option"); o.value = g; o.textContent = `تدرج ${i+1}`; gradientSelect.appendChild(o); });
-    })();
-
-    // --- font preview update ---
-    function updateFontPreview(){
-      if(!fontPreview) return;
-      const text = (fontNameInput && fontNameInput.value) ? fontNameInput.value : "نص تجريبي";
-      fontPreview.textContent = text;
-      const f = (fontSelect && fontSelect.value) ? fontSelect.value : "Cairo";
-      if(f && f.startsWith("data:")) fontPreview.style.fontFamily = "Cairo, sans-serif";
-      else fontPreview.style.fontFamily = `${f}, sans-serif`;
-
-      // mode handling
-      const activeMode = document.querySelector(".mode-btn.active");
-      const mode = activeMode ? activeMode.dataset.mode : "solid";
-      fontPreview.style.background = ""; fontPreview.style.webkitBackgroundClip = ""; fontPreview.style.color = "";
-      if(mode === "solid"){
-        const c = document.getElementById("solidColor");
-        fontPreview.style.color = c ? c.value : "#d4af37";
-      } else if(mode === "gradient"){
-        const g = gradientSelect ? gradientSelect.value : "";
-        if(g){
-          fontPreview.style.background = g;
-          fontPreview.style.webkitBackgroundClip = "text";
-          fontPreview.style.color = "transparent";
-        }
-      } else if(mode === "clothe"){
-        const src = clotheSelect ? clotheSelect.value : "";
-        if(src){
-          fontPreview.style.background = `url('${src}') center/cover`;
-          fontPreview.style.webkitBackgroundClip = "text";
-          fontPreview.style.color = "transparent";
-        }
-      }
-    }
-
-    ["fontNameInput","fontSelect","gradientSelect","clotheSelect","solidColor"].forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.addEventListener("input", updateFontPreview);
-    });
-
-    const modeBtns = Array.from(document.querySelectorAll(".mode-btn") || []);
-    modeBtns.forEach(b => b.addEventListener("click", () => {
-      modeBtns.forEach(x => x.classList.remove("active"));
-      b.classList.add("active");
-      updateFontPreview();
-    }));
-    if(generateFont) generateFont.addEventListener("click", updateFontPreview);
-
-    // --- global events from part1 ---
-    document.addEventListener("app:ready", () => {
-      renderGallery();
-      populateClotheSelect();
-      populateFontSelect();
-      renderContactLinks();
-    });
-
-    document.addEventListener("control:authenticated", () => {
-      if(aboutEditor) aboutEditor.value = localStorage.getItem("aboutText") || (aboutText ? aboutText.textContent : "");
-      if(contactEditor) contactEditor.value = localStorage.getItem("contactText") || "";
-      renderGallery();
-      populateClotheSelect();
-      populateFontSelect();
-      renderContactLinks();
-    });
-
-    // --- perform OCR (uses Tesseract if present) ---
-    document.addEventListener("perform:ocr", async (ev) => {
-      const detail = ev.detail || {};
-      const imageData = detail.data;
-      if (!imageData) return alert("لا توجد صورة لمعالجتها");
-      if (window.Tesseract && typeof window.Tesseract.recognize === "function") {
-        try {
-          const worker = window.Tesseract.createWorker();
-          await worker.load();
-          await worker.loadLanguage("ara+eng");
-          await worker.initialize("ara+eng");
-          const { data: { text } } = await worker.recognize(imageData);
-          await worker.terminate();
-          alert("نتيجة OCR:\n\n" + (text || "(لم يتم قراءة نص)"));
-        } catch (err) {
-          console.warn("OCR error", err);
-          alert("خطأ أثناء معالجة OCR");
-        }
+    ensureAdminPwdExists();
+    on(adminLogin, "click", () => {
+      const val = (adminPass && adminPass.value ? adminPass.value.trim() : "");
+      const saved = getSavedAdminPwd() || DEFAULT_ADMIN_PWD;
+      if (val === saved) {
+        if (controlAuth) controlAuth.style.display = "none";
+        if (controlArea) controlArea.classList.remove("hidden");
+        document.dispatchEvent(new CustomEvent("control:authenticated"));
       } else {
-        alert("OCR غير مُفعل محليًا. لإضافة OCR ضع Tesseract.js في index.html أو استخدم زر OCR على الصورة وسيعمل إذا أضفت المكتبة.");
+        alert("كلمة المرور غير صحيحة");
+        if (adminPass) adminPass.value = "";
       }
     });
 
-    // --- before unload save all ---
-    window.addEventListener("beforeunload", () => {
-      saveJSON("userImages", userImages);
-      saveJSON("clothesImages", clothesImages);
-      saveJSON("uploadedFonts", uploadedFonts);
-      saveJSON("nameStyles", nameStyles);
-      saveJSON("contactImages", contactImages);
+    // إضافة واجهة تغيير كلمة المرور داخل controlArea (إذا الDOM يحتوي already نستخدمه)
+    const controlInner = document.querySelector(".control-inner");
+    if (controlInner) {
+      // ابحث إن كان فيه مكان لتغيير كلمة المرور أصلاً (لمنع الازدواج)
+      if (!document.getElementById("changePwdSection")) {
+        const sec = document.createElement("section");
+        sec.id = "changePwdSection";
+        sec.className = "control-section";
+        sec.innerHTML = `
+          <h4>تغيير كلمة مرور لوحة التحكم</h4>
+          <label>كلمة المرور الحالية</label>
+          <input type="password" id="curAdminPwd" class="input" placeholder="أدخل كلمة المرور الحالية" />
+          <label>كلمة المرور الجديدة</label>
+          <input type="password" id="newAdminPwd" class="input" placeholder="أدخل كلمة المرور الجديدة" />
+          <label>تأكيد كلمة المرور الجديدة</label>
+          <input type="password" id="confirmAdminPwd" class="input" placeholder="أكد كلمة المرور الجديدة" />
+          <button id="changePwdBtn" class="btn">تغيير كلمة المرور</button>
+        `;
+        // ضعها قبل أزرار الحفظ إن وجدت
+        const controlActions = document.querySelector(".control-actions");
+        if (controlActions) controlInner.insertBefore(sec, controlActions);
+        else controlInner.appendChild(sec);
+
+        // فعل الزر
+        on(document.getElementById("changePwdBtn"), "click", () => {
+          const cur = (document.getElementById("curAdminPwd").value || "").trim();
+          const nw = (document.getElementById("newAdminPwd").value || "").trim();
+          const cf = (document.getElementById("confirmAdminPwd").value || "").trim();
+          const saved = getSavedAdminPwd() || DEFAULT_ADMIN_PWD;
+          if (!cur || !nw) return alert("املأ الحقول المطلوبة");
+          if (cur !== saved) return alert("كلمة المرور الحالية غير صحيحة");
+          if (nw.length < 4) return alert("يجب أن تكون كلمة المرور الجديدة 4 أحرف على الأقل");
+          if (nw !== cf) return alert("تأكيد كلمة المرور غير مطابق");
+          setAdminPwd(nw);
+          alert("تم تغيير كلمة المرور بنجاح");
+          // افراغ الحقول
+          document.getElementById("curAdminPwd").value = "";
+          document.getElementById("newAdminPwd").value = "";
+          document.getElementById("confirmAdminPwd").value = "";
+        });
+      }
+    }
+
+    on(logoutBtn, "click", () => {
+      if (controlArea) controlArea.classList.add("hidden");
+      if (controlAuth) controlAuth.style.display = "";
+      const modal = $("controlModal");
+      if (modal) modal.classList.add("hidden");
+    });
+  }
+
+  // --------------------------
+  // Search functionality
+  // --------------------------
+  function doSearch() {
+    const qEl = $("fileSearch");
+    const q = qEl && qEl.value ? qEl.value.trim().toLowerCase() : "";
+    try {
+      const stored = loadJSON(LS_KEYS.userImages, []);
+      const filtered = stored.filter(i => (i.name || "").toLowerCase().includes(q));
+      window.renderResultsGrid(filtered);
+    } catch (e) { console.warn(e); window.renderResultsGrid([]); }
+  }
+
+  // --------------------------
+  // Event wiring (UI interactions common)
+  // --------------------------
+  function wireUI() {
+    // welcome start button
+    on($("startApp"), "click", () => {
+      const welcome = $("welcomeModal");
+      if (welcome) {
+        welcome.style.transition = "opacity .35s ease, transform .35s ease";
+        welcome.style.opacity = "0"; welcome.style.transform = "scale(.98)";
+        setTimeout(() => { if (welcome && welcome.parentNode) welcome.parentNode.removeChild(welcome); }, 360);
+      }
+      const main = $("mainContent");
+      if (main) main.classList.remove("hidden");
+      document.dispatchEvent(new CustomEvent("app:started"));
+      // refresh gallery in case uploads happened earlier
+      renderGallery();
     });
 
-    // initial render at load
-    renderGallery();
+    // sidebar toggle
+    on($("sectionsToggle"), "click", () => {
+      const side = $("sideNav");
+      if (!side) return;
+      side.classList.toggle("hidden");
+      side.setAttribute("aria-hidden", side.classList.contains("hidden") ? "true" : "false");
+    });
+    on($("closeSide"), "click", () => {
+      const side = $("sideNav"); if (side) { side.classList.add("hidden"); side.setAttribute("aria-hidden", "true"); }
+    });
+
+    // side navigation
+    const sideItems = Array.from(document.querySelectorAll(".side-item") || []);
+    const pages = Array.from(document.querySelectorAll(".page") || []);
+    sideItems.forEach(li => {
+      li.addEventListener("click", () => {
+        const target = li.dataset.target;
+        if (!target) return;
+        sideItems.forEach(s => s.classList.remove("active"));
+        li.classList.add("active");
+        pages.forEach(p => p.id === target ? p.classList.add("active") : p.classList.remove("active"));
+        const side = $("sideNav"); if (side) { side.classList.add("hidden"); side.setAttribute("aria-hidden", "true"); }
+      });
+    });
+
+    // control modal open/close
+    on($("controlBtn"), "click", () => {
+      const modal = $("controlModal");
+      if (!modal) return;
+      modal.classList.toggle("hidden");
+      modal.setAttribute("aria-hidden", modal.classList.contains("hidden") ? "true" : "false");
+      // reset auth
+      const adminPass = $("adminPass"); if (adminPass) adminPass.value = "";
+      const controlAuth = $("controlAuth"); if (controlAuth) controlAuth.style.display = "";
+      const controlArea = $("controlArea"); if (controlArea) controlArea.classList.add("hidden");
+    });
+    on($("closeControl"), "click", () => {
+      const modal = $("controlModal"); if (modal) modal.classList.add("hidden");
+    });
+
+    // search handlers
+    on($("searchBtn"), "click", doSearch);
+    const fileSearch = $("fileSearch");
+    if (fileSearch) fileSearch.addEventListener("keyup", (e) => { if (e.key === "Enter") doSearch(); });
+
+    // OCR request button (explains flow)
+    on($("ocrBtn"), "click", () => {
+      alert("لإجراء OCR: اختر صورة من 'الصور المضافة' ثم اضغط زر 'OCR على الصورة' في بطاقة الصورة.");
+    });
+  }
+
+  // --------------------------
+  // رابط الأحداث مع أجزاء العمل
+  // --------------------------
+  document.addEventListener("DOMContentLoaded", () => {
+    // إخفاء أي كلمة مرور ظاهرة في النص
+    hideVisibleDefaultPwd();
+
+    // تأكد من وجود كلمة مرور محفوظة
+    ensureAdminPwdExists();
+
+    // واصل تهيئة واجهة لوحة التحكم
+    wireControlUploads(); // رفع الملفات
     populateClotheSelect();
     populateFontSelect();
-    renderContactLinks();
+    renderGallery();
 
-  }); // DOMContentLoaded
-})();
+    wireUI();
+    wireControlAuthAndChangePwd();
+
+    // حدث جاهزية التطبيق
+    document.dispatchEvent(new CustomEvent("app:ready"));
+  });
+
+  // --------------------------
+  // حفظ تلقائي قبل الخروج
+  // --------------------------
+  window.addEventListener("beforeunload", () => {
+    saveJSON(LS_KEYS.userImages, userImages);
+    saveJSON(LS_KEYS.clothesImages, clothesImages);
+    saveJSON(LS_KEYS.uploadedFonts, uploadedFonts);
+    saveJSON(LS_KEYS.nameStyles, nameStyles);
+    saveJSON(LS_KEYS.contactImages, contactImages);
+  });
+
+  // --------------------------
+  // exposed helpers (optional)
+  // --------------------------
+  window.appHelper = {
+    downloadDataURL,
+    renderGallery,
+    renderResultsGrid,
+    setAdminPwd
+  };
+
+})(); // IIFE
