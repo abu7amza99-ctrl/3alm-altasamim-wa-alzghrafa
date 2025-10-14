@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>عالم الزخرفة والتصاميم</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- الرسالة الترحيبية -->
+  <div id="welcome">
+    <div class="welcome-box">
+      <h1>أهلاً بك في عالم الزخرفة والتصاميم</h1>
+      <button id="startBtn">ابدأ</button>
+    </div>
+  </div>
+
+  <!-- الشريط العلوي -->
+  <header class="top-bar">
+    <img src="assets/siting.png" alt="لوحة التحكم" class="icon" id="openAdmin" />
+    <div class="app-title">
+      <h2>عالم الزخرفة والتصاميم</h2>
+      <img src="assets/abu7amza.png" alt="logo" class="logo">
+    </div>
+    <img src="assets/yhbg.png" alt="القائمة" class="icon" id="openMenu" />
+  </header>
+
+  <!-- اللوحة الجانبية -->
+  <div id="sideMenu" class="side-menu">
+    <button class="close-btn" id="closeMenu">×</button>
+    <h3>الأقسام</h3>
+    <p>سيتم إضافتها لاحقًا...</p>
+  </div>
+
+  <!-- لوحة التحكم -->
+  <div id="adminPanel" class="admin-panel">
+    <div class="admin-box">
+      <button class="close-btn" id="closeAdmin">×</button>
+      <div id="loginSection">
+        <h3>أدخل كلمة المرور</h3>
+        <input type="password" id="adminPass" placeholder="كلمة المرور">
+        <button id="loginBtn">دخول</button>
+      </div>
+      <div id="settingsSection" style="display:none;">
+        <h3>تغيير كلمة المرور</h3>
+        <input type="password" id="newPass" placeholder="كلمة مرور جديدة">
+        <button id="changePassBtn">تغيير</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+        </html>
