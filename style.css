@@ -1,0 +1,132 @@
+body {
+  margin: 0;
+  font-family: "Tajawal", sans-serif;
+  background: url("assets/bg.png") no-repeat center center/cover;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* الرسالة الترحيبية */
+#welcome {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.welcome-box {
+  background: rgba(255,215,0,0.2);
+  border: 2px solid gold;
+  border-radius: 20px;
+  padding: 30px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 0 15px gold;
+}
+
+.welcome-box button {
+  background: gold;
+  border: none;
+  padding: 10px 20px;
+  margin-top: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* الشريط العلوي */
+.top-bar {
+  background: url("assets/shbg.png") no-repeat center center/cover;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px;
+  height: 60px;
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  text-shadow: 0 0 5px black;
+}
+
+.app-title .logo {
+  width: 45px;
+  height: 45px;
+}
+
+/* اللوحة الجانبية */
+.side-menu {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 250px;
+  background: rgba(255, 215, 0, 0.2);
+  backdrop-filter: blur(6px);
+  box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+  padding: 20px;
+  display: none;
+  z-index: 9;
+}
+
+.side-menu h3 {
+  color: white;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* لوحة التحكم */
+.admin-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.admin-box {
+  background: rgba(255, 215, 0, 0.5);
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 0 15px gold;
+  text-align: center;
+  width: 300px;
+}
+
+.admin-box input {
+  width: 80%;
+  padding: 8px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.admin-box button {
+  background: gold;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  }
