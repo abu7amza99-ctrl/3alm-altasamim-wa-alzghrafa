@@ -1,33 +1,37 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>عالم الزخرفة والتصاميم</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>عالم الزخرفة والتصميم</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <!-- رسالة الترحيب -->
-  <div id="welcome-screen">
+  <div id="welcome-screen" class="overlay">
     <div class="welcome-box">
-      <h1>مرحباً بك في عالم الزخرفة والتصاميم</h1>
+      <h1>مرحباً بك في عالم الزخرفة والتصميم</h1>
       <button id="start-btn">ابدأ</button>
     </div>
   </div>
 
   <!-- الشريط العلوي -->
   <header class="top-bar">
-    <img src="assets/yhbg.png" id="side-menu-btn" class="icon-btn" alt="القائمة">
+    <!-- يمين الشريط: زر اللوحة الجانبية -->
+    <img src="assets/yhbg.png" id="side-menu-btn" class="icon-btn" alt="قائمة">
+    <!-- منتصف الشريط: اسم التطبيق + لوجو (اللوجو على يسار الاسم كما طلبت) -->
     <div class="title-area">
-      <h2>عالم الزخرفة والتصاميم</h2>
-      <img src="assets/abu7amza.png" class="logo" alt="الشعار">
+      <img src="assets/abu7amza.png" class="logo" alt="logo">
+      <h2 id="app-title">عالم الزخرفة والتصميم</h2>
     </div>
-    <img src="assets/siting.png" id="settings-btn" class="icon-btn" alt="الإعدادات">
+    <!-- يسار الشريط: زر لوحة التحكم -->
+    <img src="assets/siting.png" id="settings-btn" class="icon-btn" alt="لوحة التحكم">
   </header>
 
   <!-- اللوحة الجانبية -->
-  <nav id="side-menu">
-    <button id="close-side">✖</button>
+  <nav id="side-menu" aria-hidden="true">
+    <button id="close-side" class="close-x">✖</button>
     <ul>
       <li data-section="home">الصفحة الرئيسية</li>
       <li data-section="pro-decor">الزخرفة الاحترافية</li>
@@ -37,73 +41,127 @@
     </ul>
   </nav>
 
-  <!-- لوحة التحكم -->
+  <!-- لوحة التحكم (لتظهر كتبويب ذهبي شفاف 50%) -->
   <div id="control-panel" class="hidden">
     <div class="panel-content">
-      <button id="close-panel">✖</button>
-      <div id="password-area">
+      <button id="close-panel" class="close-x">✖</button>
+
+      <!-- شاشة الدخول -->
+      <div id="login-area">
         <h3>أدخل كلمة المرور</h3>
-        <input type="password" id="password-input" placeholder="كلمة المرور">
-        <button id="enter-panel">دخول</button>
+        <input id="panel-password" type="password" placeholder="كلمة المرور">
+        <button id="panel-login">دخول</button>
       </div>
+
+      <!-- خيارات تظهر بعد الدخول -->
       <div id="panel-options" class="hidden">
-        <h3>إعدادات لوحة التحكم</h3>
-        <label>تغيير كلمة المرور:</label>
-        <input type="password" id="new-password" placeholder="كلمة مرور جديدة">
-        <button id="change-password">تحديث</button>
+        <h3>لوحة التحكم</h3>
+
+        <!-- تغيير كلمة المرور -->
+        <label>تغيير كلمة المرور</label>
+        <input id="new-password" type="password" placeholder="كلمة مرور جديدة">
+        <button id="save-password">حفظ</button>
+
+        <hr>
+
+        <!-- رفع صور المعرض -->
+        <label>رفع صور المعرض (الصفحة الرئيسية)</label>
+        <input id="upload-gallery" type="file" accept="image/*" multiple>
+        <button id="save-gallery">حفظ صور المعرض</button>
+
+        <hr>
+
+        <!-- رفع صور التلبيس -->
+        <label>رفع صور التلبيس (تلبيسات)</label>
+        <input id="upload-tex" type="file" accept="image/*" multiple>
+        <button id="save-tex">حفظ تلبيسات</button>
+
+        <hr>
+
+        <!-- رفع خطوط -->
+        <label>رفع خطوط (.ttf / .otf)</label>
+        <input id="upload-fonts" type="file" accept=".ttf,.otf" multiple>
+        <button id="save-fonts">إضافة الخطوط</button>
+
+        <hr>
+
+        <!-- تعديل نصوص About / Contact -->
+        <label>نص لمحة عن التطبيق</label>
+        <textarea id="about-text" rows="3" placeholder="نص لمحة عن التطبيق"></textarea>
+        <button id="save-about">حفظ</button>
+
+        <label>نص اتصل بنا</label>
+        <textarea id="contact-text" rows="2" placeholder="نص اتصل بنا"></textarea>
+        <button id="save-contact">حفظ</button>
       </div>
     </div>
   </div>
 
-  <!-- الأقسام -->
+  <!-- المحتوى الرئيسي (كل قسم <section> منفصل ويعرض عند الطلب) -->
   <main id="main-content">
     <!-- الصفحة الرئيسية -->
     <section id="home" class="app-section active">
       <h2>الصفحة الرئيسية</h2>
+
+      <!-- مربع البحث -->
       <div class="search-area">
-        <input type="text" id="search" placeholder="ابحث عن اسم أو صورة...">
+        <input id="search-input" placeholder="ابحث باسم الملف أو الاسم...">
         <button id="search-btn">بحث</button>
       </div>
+
+      <!-- نتائج البحث (شبكي) -->
       <div id="results" class="grid"></div>
-      <div id="added-images" class="grid"></div>
+
+      <!-- معرض الصور المضاف من لوحة التحكم -->
+      <h3>الصور المضافة</h3>
+      <div id="gallery" class="grid"></div>
     </section>
 
     <!-- الزخرفة الاحترافية -->
     <section id="pro-decor" class="app-section">
       <h2>الزخرفة الاحترافية</h2>
+
       <div class="tools-bar">
-        <input type="text" id="decor-name" placeholder="اكتب الاسم هنا...">
-        <input type="file" id="upload-name" accept="image/*">
-        <select id="font-select">
-          <option>ديواني</option>
-          <option>ثلث</option>
-          <option>كوفي</option>
-          <option>رقعة</option>
-          <option>نسخ</option>
-        </select>
-        <input type="color" id="bg-color" title="اختر الخلفية">
+        <input id="decor-text" placeholder="اكتب الاسم هنا">
+        <input id="decor-upload" type="file" accept="image/*">
+        <select id="font-select"></select>
+        <input id="solid-color" type="color" value="#ffd700" title="لون ثابت">
         <select id="color-type">
           <option value="solid">ثابت</option>
           <option value="gradient">متدرج</option>
           <option value="texture">تلبيس</option>
         </select>
       </div>
-      <div id="decor-preview" class="preview-box">معاينة النتيجة</div>
-      <button id="download-btn">تحميل النتيجة</button>
+
+      <!-- شبكة التدرجات (تظهر عند اختيار متدرج) -->
+      <div id="gradients" class="grid gradients-grid" aria-hidden="true"></div>
+
+      <!-- شبكة التلبيسات (تظهر عند اختيار تلبيس) -->
+      <div id="textures" class="grid textures-grid" aria-hidden="true"></div>
+
+      <!-- معاينة حقيقية (canvas) -->
+      <div class="preview-box">
+        <canvas id="preview-canvas" width="800" height="300"></canvas>
+      </div>
+
+      <div class="controls-down">
+        <button id="download-image">تحميل النتيجة</button>
+      </div>
     </section>
 
     <!-- زخرفة الأسماء -->
     <section id="names" class="app-section">
       <h2>زخرفة الأسماء</h2>
-      <input type="text" id="name-input" placeholder="اكتب الاسم هنا...">
+      <input id="names-input" placeholder="اكتب الاسم هنا...">
       <div id="names-results" class="grid"></div>
+      <p class="muted">النتائج عرض حالياً فارغة (سيتم إضافة قوالب من لوحة التحكم لاحقًا).</p>
     </section>
 
     <!-- لمحة عن التطبيق -->
     <section id="about" class="app-section">
       <div class="info-box">
         <h2>لمحة عن التطبيق</h2>
-        <p>تطبيق "عالم الزخرفة والتصاميم" يهدف لتقديم تجربة متكاملة لعشاق الجمال الفني والزخرفة العربية الحديثة.</p>
+        <p id="about-content">تطبيق يقدم أدوات زخرفة وتصميم بسيطة وسريعة.</p>
       </div>
     </section>
 
@@ -111,12 +169,12 @@
     <section id="contact" class="app-section">
       <div class="contact-box">
         <h2>اتصل بنا</h2>
-        <p>يمكنك التواصل معنا عبر البريد الإلكتروني أو وسائل التواصل الاجتماعي.</p>
-        <p>email@example.com</p>
+        <p id="contact-content">email@example.com</p>
+        <div id="contact-media" class="grid"></div>
       </div>
     </section>
   </main>
 
   <script src="script.js"></script>
 </body>
-                                                                                 </html>
+          </html>
