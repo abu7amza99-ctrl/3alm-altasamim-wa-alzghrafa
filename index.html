@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>عالم التصاميم والزخرفة</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="abu7amza.png" type="image/png">
+</head>
+<body>
+
+  <!-- شاشة الترحيب (شفافية ذهبي 20%) -->
+  <div id="welcomeScreen" class="welcome-screen" aria-hidden="false">
+    <div class="welcome-box">
+      <img src="abu7amza.png" alt="شعار التطبيق" class="welcome-logo">
+      <h1 class="welcome-title">مرحباً بك في عالم التصاميم والزخرفة</h1>
+      <p class="welcome-text">
+        أنشئ زخارف وواجهات احترافية بسهولة — اضغط "ابدأ" للدخول أو اختر "أقسام" أو "إبداع".
+      </p>
+      <div class="welcome-actions">
+        <button id="enterApp" class="start-btn">ابدأ</button>
+        <button id="welcomeSectionsBtn" class="flat">الأقسام</button>
+        <button id="welcomeCreateBtn" class="flat">إبداع</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- الشريط العلوي -->
+  <header class="top-bar" role="banner">
+    <div class="left-area">
+      <button id="menuBtn" class="menu-btn" aria-label="فتح القائمة">
+        <img src="yhbg.png" alt="قائمة" />
+      </button>
+    </div>
+
+    <div class="app-title" aria-hidden="true">
+      <img src="abu7amza.png" alt="logo" class="app-icon">
+      <span class="app-name">عالم التصاميم والزخرفة</span>
+    </div>
+
+    <div class="right-area">
+      <button id="settingsBtn" class="settings-btn" aria-label="لوحة التحكم">
+        <img src="sitting.png" alt="لوحة التحكم" />
+      </button>
+    </div>
+  </header>
+
+  <!-- الشريط الجانبي (قائمة أقسام) -->
+  <nav id="sideMenu" class="side-menu" aria-hidden="true">
+    <button id="closeSide" class="close-side" aria-label="إغلاق القائمة">✕</button>
+    <ul class="menu-list" role="menu">
+      <li class="menu-item" data-section="home" role="menuitem">الصفحة الرئيسية</li>
+      <li class="menu-item" data-section="proDecor" role="menuitem">الزخرفة الاحترافية</li>
+      <li class="menu-item" data-section="nameDecor" role="menuitem">زخرفة الأسماء</li>
+      <li class="menu-item" data-section="about" role="menuitem">لمحة عن التطبيق</li>
+      <li class="menu-item" data-section="contact" role="menuitem">اتصل بنا</li>
+    </ul>
+  </nav>
+
+  <!-- لوحة التحكم (Overlay) -->
+  <div id="adminOverlay" class="admin-overlay hidden" aria-hidden="true">
+    <div class="admin-box" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+      <!-- شاشة الدخول -->
+      <div id="adminLogin" class="admin-login">
+        <h2 id="adminTitle">لوحة التحكم</h2>
+        <p>أدخل كلمة المرور (الافتراضية: <code>asd321</code>)</p>
+        <input id="adminPassword" type="password" placeholder="كلمة المرور" aria-label="كلمة المرور" />
+        <div class="admin-actions">
+          <button id="adminEnter" class="gold-btn">دخول</button>
+          <button id="adminClose" class="flat">إلغاء</button>
+        </div>
+      </div>
+
+      <!-- محتوى لوحة التحكم (مخفية حتى تسجيل الدخول) -->
+      <div id="adminContent" class="admin-content hidden">
+        <div class="admin-header">
+          <h2>إعدادات التطبيق</h2>
+          <button id="closeAdmin" class="close-admin" aria-label="إغلاق">✕</button>
+        </div>
+
+        <div class="admin-tabs" role="tablist">
+          <button class="admin-tab" data-tab="tabAppearance" role="tab">مظهر التطبيق</button>
+          <button class="admin-tab" data-tab="tabSections" role="tab">الأقسام</button>
+          <button class="admin-tab" data-tab="tabHomeTools" role="tab">الصفحة الرئيسية</button>
+          <button class="admin-tab" data-tab="tabProTools" role="tab">الزخرفة الاحترافية</button>
+          <button class="admin-tab" data-tab="tabNameTools" role="tab">زخرفة الأسماء</button>
+          <button class="admin-tab" data-tab="tabAbout" role="tab">لمحة</button>
+          <button class="admin-tab" data-tab="tabContact" role="tab">اتصل بنا</button>
+        </div>
+
+        <!-- تبويبات -->
+        <div id="tabAppearance" class="admin-tab-content hidden">
+          <h3>تعديل المظهر</h3>
+          <label>اختر خط التطبيق</label>
+          <select id="fontSelector" aria-label="اختيار خط التطبيق">
+            <option>Amiri</option>
+            <option>Cairo</option>
+            <option>Tajawal</option>
+            <option>Reem Kufi</option>
+            <option>Changa</option>
+            <option>El Messiri</option>
+            <option>Lateef</option>
+            <option>Markazi Text</option>
+            <option>Almarai</option>
+            <option>Lemonada</option>
+          </select>
+        </div>
+
+        <div id="tabSections" class="admin-tab-content hidden">
+          <h3>إدارة الأقسام</h3>
+          <button id="addSectionBtn" class="gold-btn">إضافة قسم جديد</button>
+          <button id="reorderSectionsBtn" class="flat">تعديل ترتيب الأقسام</button>
+        </div>
+
+        <div id="tabHomeTools" class="admin-tab-content hidden">
+          <h3>أدوات الصفحة الرئيسية</h3>
+          <label>رفع صور للصفحة الرئيسية</label>
+          <input id="homeImagesInput" type="file" accept="image/*" multiple />
+        </div>
+
+        <div id="tabProTools" class="admin-tab-content hidden">
+          <h3>أدوات الزخرفة الاحترافية</h3>
+          <label>رفع خطوط (ttf/otf/woff)</label>
+          <input id="proFontsInput" type="file" accept=".ttf,.otf,.woff,.woff2" multiple />
+          <label>رفع تلبيسات (صور)</label>
+          <input id="colorOverlaysInput" type="file" accept="image/*" multiple />
+          <label>رفع ستايلات (css/js/json)</label>
+          <input id="proStylesInput" type="file" accept=".css,.js,.json" multiple />
+        </div>
+
+        <div id="tabNameTools" class="admin-tab-content hidden">
+          <h3>أدوات زخرفة الأسماء</h3>
+          <label>رفع ستايلات زخرفة (js/json)</label>
+          <input id="nameStylesInput" type="file" accept=".js,.json" multiple />
+        </div>
+
+        <div id="tabAbout" class="admin-tab-content hidden">
+          <h3>لمحة عن التطبيق</h3>
+          <textarea id="aboutTextEditor" rows="5" placeholder="نص لمحة عن التطبيق"></textarea>
+        </div>
+
+        <div id="tabContact" class="admin-tab-content hidden">
+          <h3>اتصل بنا</h3>
+          <textarea id="contactTextEditor" rows="4" placeholder="نص قسم اتصل بنا"></textarea>
+          <label>رفع صور وروابط</label>
+          <input id="contactImagesInput" type="file" accept="image/*" multiple />
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- المحتوى الرئيسي (الأقسام) -->
+  <main id="mainContent" role="main">
+
+    <!-- القسم 1: الصفحة الرئيسية -->
+    <section id="home" class="app-section active">
+      <div class="search-area">
+        <input id="searchInput" type="text" placeholder="ابحث عن الصور حسب الاسم..." aria-label="بحث" />
+        <button id="searchBtn" class="gold-btn">بحث</button>
+      </div>
+
+      <div id="searchResults" class="grid-gallery" aria-live="polite"></div>
+
+      <h3 class="section-subtitle">الصور المضافة من لوحة التحكم</h3>
+      <div id="homeImagesGallery" class="grid-gallery" aria-live="polite"></div>
+    </section>
+
+    <!-- القسم 2: الزخرفة الاحترافية -->
+    <section id="proDecor" class="app-section hidden" aria-hidden="true">
+      <h2 class="section-title">الزخرفة الاحترافية</h2>
+
+      <div class="tools-bar">
+        <input id="decorNameInput" type="text" placeholder="اكتب الاسم هنا" />
+        <input id="decorImageInput" type="file" accept="image/*" />
+        <select id="decorFontSelect"><option value="">اختيار الخط</option></select>
+        <button id="decorBgBtn" class="gold-btn">تغيير الخلفية</button>
+        <select id="colorTypeSelect">
+          <option value="solid">ثابت</option>
+          <option value="gradient">متدرج</option>
+          <option value="overlay">تلبيس</option>
+        </select>
+      </div>
+
+      <div id="colorPickerSection" class="color-section hidden">
+        <div id="solidColorPicker" class="hidden">
+          <input id="solidColor" type="color" value="#111111" />
+        </div>
+        <div id="gradientGallery" class="grid-gallery hidden" aria-hidden="true"></div>
+        <div id="overlayGallery" class="grid-gallery hidden" aria-hidden="true"></div>
+      </div>
+
+      <div class="preview-area">
+        <canvas id="decorPreview" width="960" height="420" aria-label="معاينة الزخرفة"></canvas>
+      </div>
+
+      <div class="download-section">
+        <button id="downloadDecorBtn" class="gold-btn">تحميل النتيجة</button>
+      </div>
+    </section>
+
+    <!-- القسم 3: زخرفة الأسماء -->
+    <section id="nameDecor" class="app-section hidden" aria-hidden="true">
+      <h2 class="section-title">زخرفة الأسماء</h2>
+      <input id="nameInput" type="text" placeholder="أدخل الاسم للزخرفة" />
+      <div id="nameResults" class="name-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- القسم 4: لمحة عن التطبيق -->
+    <section id="about" class="app-section hidden" aria-hidden="true">
+      <div class="about-box">
+        <p id="aboutText">هذا التطبيق يحاكي عالم التصاميم والزخرفة الاحترافية — يمكنك تخصيص الخطوط، الألوان، والتلبيسات من لوحة التحكم.</p>
+      </div>
+    </section>
+
+    <!-- القسم 5: اتصل بنا -->
+    <section id="contact" class="app-section hidden" aria-hidden="true">
+      <div class="contact-box">
+        <p id="contactText">للتواصل معنا: أضف صور وروابط من لوحة التحكم.</p>
+        <div id="contactImagesContainer" class="contact-gallery"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- خلفية (ضع bg.png في نفس المجلد أو غيّر المسار) -->
+  <div class="background" aria-hidden="true">
+    <img src="bg.png" alt="خلفية التطبيق" />
+  </div>
+
+  <!-- ربط السكربت النهائي (ضع script.js في نفس المجلد) -->
+  <script src="script.js" defer></script>
+</body>
+  </html>
