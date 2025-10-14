@@ -1,55 +1,122 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>عالم الزخرفة والتصاميم</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <!-- الرسالة الترحيبية -->
-  <div id="welcome">
+  <!-- رسالة الترحيب -->
+  <div id="welcome-screen">
     <div class="welcome-box">
-      <h1>أهلاً بك في عالم الزخرفة والتصاميم</h1>
-      <button id="startBtn">ابدأ</button>
+      <h1>مرحباً بك في عالم الزخرفة والتصاميم</h1>
+      <button id="start-btn">ابدأ</button>
     </div>
   </div>
 
   <!-- الشريط العلوي -->
   <header class="top-bar">
-    <img src="assets/siting.png" alt="لوحة التحكم" class="icon" id="openAdmin" />
-    <div class="app-title">
+    <img src="assets/yhbg.png" id="side-menu-btn" class="icon-btn" alt="القائمة">
+    <div class="title-area">
       <h2>عالم الزخرفة والتصاميم</h2>
-      <img src="assets/abu7amza.png" alt="logo" class="logo">
+      <img src="assets/abu7amza.png" class="logo" alt="الشعار">
     </div>
-    <img src="assets/yhbg.png" alt="القائمة" class="icon" id="openMenu" />
+    <img src="assets/siting.png" id="settings-btn" class="icon-btn" alt="الإعدادات">
   </header>
 
   <!-- اللوحة الجانبية -->
-  <div id="sideMenu" class="side-menu">
-    <button class="close-btn" id="closeMenu">×</button>
-    <h3>الأقسام</h3>
-    <p>سيتم إضافتها لاحقًا...</p>
-  </div>
+  <nav id="side-menu">
+    <button id="close-side">✖</button>
+    <ul>
+      <li data-section="home">الصفحة الرئيسية</li>
+      <li data-section="pro-decor">الزخرفة الاحترافية</li>
+      <li data-section="names">زخرفة الأسماء</li>
+      <li data-section="about">لمحة عن التطبيق</li>
+      <li data-section="contact">اتصل بنا</li>
+    </ul>
+  </nav>
 
   <!-- لوحة التحكم -->
-  <div id="adminPanel" class="admin-panel">
-    <div class="admin-box">
-      <button class="close-btn" id="closeAdmin">×</button>
-      <div id="loginSection">
+  <div id="control-panel" class="hidden">
+    <div class="panel-content">
+      <button id="close-panel">✖</button>
+      <div id="password-area">
         <h3>أدخل كلمة المرور</h3>
-        <input type="password" id="adminPass" placeholder="كلمة المرور">
-        <button id="loginBtn">دخول</button>
+        <input type="password" id="password-input" placeholder="كلمة المرور">
+        <button id="enter-panel">دخول</button>
       </div>
-      <div id="settingsSection" style="display:none;">
-        <h3>تغيير كلمة المرور</h3>
-        <input type="password" id="newPass" placeholder="كلمة مرور جديدة">
-        <button id="changePassBtn">تغيير</button>
+      <div id="panel-options" class="hidden">
+        <h3>إعدادات لوحة التحكم</h3>
+        <label>تغيير كلمة المرور:</label>
+        <input type="password" id="new-password" placeholder="كلمة مرور جديدة">
+        <button id="change-password">تحديث</button>
       </div>
     </div>
   </div>
 
+  <!-- الأقسام -->
+  <main id="main-content">
+    <!-- الصفحة الرئيسية -->
+    <section id="home" class="app-section active">
+      <h2>الصفحة الرئيسية</h2>
+      <div class="search-area">
+        <input type="text" id="search" placeholder="ابحث عن اسم أو صورة...">
+        <button id="search-btn">بحث</button>
+      </div>
+      <div id="results" class="grid"></div>
+      <div id="added-images" class="grid"></div>
+    </section>
+
+    <!-- الزخرفة الاحترافية -->
+    <section id="pro-decor" class="app-section">
+      <h2>الزخرفة الاحترافية</h2>
+      <div class="tools-bar">
+        <input type="text" id="decor-name" placeholder="اكتب الاسم هنا...">
+        <input type="file" id="upload-name" accept="image/*">
+        <select id="font-select">
+          <option>ديواني</option>
+          <option>ثلث</option>
+          <option>كوفي</option>
+          <option>رقعة</option>
+          <option>نسخ</option>
+        </select>
+        <input type="color" id="bg-color" title="اختر الخلفية">
+        <select id="color-type">
+          <option value="solid">ثابت</option>
+          <option value="gradient">متدرج</option>
+          <option value="texture">تلبيس</option>
+        </select>
+      </div>
+      <div id="decor-preview" class="preview-box">معاينة النتيجة</div>
+      <button id="download-btn">تحميل النتيجة</button>
+    </section>
+
+    <!-- زخرفة الأسماء -->
+    <section id="names" class="app-section">
+      <h2>زخرفة الأسماء</h2>
+      <input type="text" id="name-input" placeholder="اكتب الاسم هنا...">
+      <div id="names-results" class="grid"></div>
+    </section>
+
+    <!-- لمحة عن التطبيق -->
+    <section id="about" class="app-section">
+      <div class="info-box">
+        <h2>لمحة عن التطبيق</h2>
+        <p>تطبيق "عالم الزخرفة والتصاميم" يهدف لتقديم تجربة متكاملة لعشاق الجمال الفني والزخرفة العربية الحديثة.</p>
+      </div>
+    </section>
+
+    <!-- اتصل بنا -->
+    <section id="contact" class="app-section">
+      <div class="contact-box">
+        <h2>اتصل بنا</h2>
+        <p>يمكنك التواصل معنا عبر البريد الإلكتروني أو وسائل التواصل الاجتماعي.</p>
+        <p>email@example.com</p>
+      </div>
+    </section>
+  </main>
+
   <script src="script.js"></script>
 </body>
-        </html>
+                                                                                 </html>
