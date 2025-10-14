@@ -1,132 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
 body {
   margin: 0;
-  font-family: "Tajawal", sans-serif;
-  background: url("assets/bg.png") no-repeat center center/cover;
-  height: 100vh;
-  overflow: hidden;
+  font-family: 'Cairo', sans-serif;
+  background: url('assets/bg.png') no-repeat center center / cover;
+  color: #fff;
+  overflow-x: hidden;
 }
 
-/* الرسالة الترحيبية */
-#welcome {
+/* رسالة الترحيب */
+#welcome-screen {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(255, 215, 0, 0.2);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 10;
+  justify-content: center;
+  z-index: 1000;
 }
 
 .welcome-box {
-  background: rgba(255,215,0,0.2);
+  background: rgba(255, 215, 0, 0.2);
   border: 2px solid gold;
-  border-radius: 20px;
   padding: 30px;
+  border-radius: 20px;
   text-align: center;
-  color: white;
-  box-shadow: 0 0 15px gold;
+  backdrop-filter: blur(10px);
 }
 
-.welcome-box button {
+.welcome-box h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+#welcome-screen button {
   background: gold;
   border: none;
-  padding: 10px 20px;
-  margin-top: 15px;
-  border-radius: 10px;
-  cursor: pointer;
+  padding: 10px 25px;
   font-weight: bold;
+  border-radius: 12px;
+  cursor: pointer;
 }
 
 /* الشريط العلوي */
 .top-bar {
-  background: url("assets/shbg.png") no-repeat center center/cover;
+  background: url('assets/shbg.png') no-repeat center center / cover;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   padding: 8px 15px;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 100;
   height: 60px;
 }
 
-.icon {
+.top-bar .title-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-bar .title-area h2 {
+  font-size: 20px;
+  color: gold;
+  margin: 0;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+}
+
+/* الأزرار في الشريط */
+.icon-btn {
   width: 40px;
   height: 40px;
   cursor: pointer;
 }
 
-.app-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: white;
-  text-shadow: 0 0 5px black;
-}
-
-.app-title .logo {
-  width: 45px;
-  height: 45px;
-}
-
 /* اللوحة الجانبية */
-.side-menu {
+#side-menu {
   position: fixed;
-  right: 0;
   top: 0;
-  height: 100%;
+  left: -250px;
   width: 250px;
+  height: 100%;
   background: rgba(255, 215, 0, 0.2);
-  backdrop-filter: blur(6px);
-  box-shadow: -2px 0 10px rgba(0,0,0,0.3);
-  padding: 20px;
-  display: none;
-  z-index: 9;
+  backdrop-filter: blur(10px);
+  box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+  transition: left 0.3s ease;
+  z-index: 200;
+  padding-top: 70px;
 }
 
-.side-menu h3 {
-  color: white;
+#side-menu.active {
+  left: 0;
 }
 
-.close-btn {
-  background: none;
+#side-menu button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: gold;
   border: none;
-  color: white;
-  font-size: 24px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
+#side-menu ul {
+  list-style: none;
+  padding: 0;
+}
+
+/* 🔹 أسماء الأقسام - اللون الأسود مع ظل ذهبي */
+#side-menu li {
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+  color: #000;
+  text-shadow: 1px 1px 3px gold;
+  font-weight: 600;
+}
+
+#side-menu li:hover {
+  background: rgba(255,215,0,0.4);
+}
+
 /* لوحة التحكم */
-.admin-panel {
+#control-panel {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 10;
-}
-
-.admin-box {
   background: rgba(255, 215, 0, 0.5);
-  padding: 30px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+#control-panel.hidden {
+  display: none;
+}
+
+.panel-content {
+  background: rgba(0,0,0,0.3);
+  border: 2px solid gold;
   border-radius: 20px;
-  box-shadow: 0 0 15px gold;
+  padding: 25px;
+  width: 320px;
   text-align: center;
-  width: 300px;
+  position: relative;
 }
 
-.admin-box input {
-  width: 80%;
-  padding: 8px;
-  margin: 10px 0;
-  border: none;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.admin-box button {
+.panel-content button {
   background: gold;
   border: none;
   padding: 8px 20px;
   border-radius: 10px;
   cursor: pointer;
-  font-weight: bold;
+  margin-top: 10px;
+}
+
+#close-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+/* الأقسام */
+main {
+  margin-top: 70px;
+  padding: 20px;
+}
+
+.app-section {
+  display: none;
+  animation: fadeIn 0.4s ease;
+}
+
+.app-section.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {opacity: 0;}
+  to {opacity: 1;}
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.preview-box {
+  margin: 20px 0;
+  border: 2px solid gold;
+  border-radius: 15px;
+  padding: 30px;
+  text-align: center;
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.tools-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+input, select, button {
+  border-radius: 10px;
+  border: 1px solid gold;
+  padding: 8px;
+}
+
+.info-box, .contact-box {
+  background: rgba(255, 215, 0, 0.2);
+  border: 1px solid gold;
+  border-radius: 20px;
+  padding: 20px;
+  text-align: center;
+  backdrop-filter: blur(8px);
   }
