@@ -1,1381 +1,694 @@
-/* ===============================================================
-   script.js - الجزء الأول
-   الوظائف: شاشة الترحيب، التنقل، القائمة الجانبية، لوحة التحكم،
-            رفع صور الصفحة الرئيسية، البحث، حفظ الحالة (localStorage)
-   يجب دمجه مع الجزء الثاني ليصبح ملف واحد كامل script.js
-   =============================================================== */
+/* =============================
+   script.js
+   جميع وظائف الواجهة + لوحة التحكم
+   التخزين محلي (localStorage)
+   كلمة المرور الافتراضية: "asd321"
+   ============================= */
 
-(function () {
-  "use strict";
+/* ---------- مساعدة بسيطة ---------- */
+const qs = (s, el = document) => el.querySelector(s);
+const qsa = (s, el = document) => Array.from(el.querySelectorAll(s));
+const STORAGE_KEYS = {
+  PASS: 'decor_pass',
+  HOME_IMAGES: 'decor_home_images',
+  PRO_FONTS: 'decor_pro_fonts',
+  PRO_TEXTURES: 'decor_pro_textures',
+  PRO_STYLES: 'decor_pro_styles',
+  NAME_STYLES: 'decor_name_styles',
+  ABOUT: 'decor_about',
+  CONTACT: 'decor_contact',
+  SECTIONS: 'decor_sections'
+};
 
-  /* ---------------------------
-     مساعدة سريعة: تحديد العناصر
-     --------------------------- */
-  const $ = (sel, ctx = document) => (ctx || document).querySelector(sel);
-  const $$ = (sel, ctx = document) =>
-    Array.from((ctx || document).querySelectorAll(sel));
+/* ---------- init default pass & sections ---------- */
+function ensureDefaults() {
+  try {
+    if (!localStorage.getItem(STORAGE_KEYS.PASS)) localStorage.setItem(STORAGE_KEYS.PASS, 'asd321');
+    if (!localStorage.getItem(STORAGE_KEYS.SECTIONS)) localStorage.setItem(STORAGE_KEYS.SECTIONS, JSON.stringify([
+      {id:'home', title:'الصفحة الرئيسية'},
+      {id:'pro', title:'الزخرفة الاحترافية'},
+      {id:'names', title:'زخرفة الأسماء'},
+      {id:'about', title:'لمحة عن التطبيق'},
+      {id:'contact', title:'اتصل بنا'}
+    ]));
+  } catch(e){ console.warn('LS error', e) }
+}
+ensureDefaults();
 
-  // helper لإنشاء عناصر بسرعة
-  const create = (tag, attrs = {}) => {
-    const el = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs)) {
-      if (k === "text") el.textContent = v;
-      else if (k === "html") el.innerHTML = v;
-      else el.setAttribute(k, v);
-    }
-    return el;
-  };
+/* ---------- عناصر أساسية ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  // overlays & panels
+  const welcome = qs('#welcome');
+  const btnStart = qs('#btn-start');
+  const sidebar = qs('#sidebar');
+  const btnMenu = qs('#btn-menu');
+  const closeSidebar = qs('#close-sidebar');
+  const sectionsLinks = qs('#sections-links');
+  const pages = qsa('.page');
 
-  // debounce
-  function debounce(fn, ms = 200) {
-    let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn.apply(this, args), ms);
-    };
+  const panelOverlay = qs('#panel-overlay');
+  const panelLogin = qs('#panel-login');
+  const panelMain = qs('#panel-main');
+  const panelPassInput = qs('#panel-pass');
+  const panelLoginBtn = qs('#panel-login-btn');
+  const panelCloseBtn = qs('#panel-close-btn');
+  const panelCloseMain = qs('#panel-close-main');
+
+  const fontList = qs('#font-list');
+  const proFontSelect = qs('#pro-font-select');
+  const proBgSelect = qs('#pro-bg-select');
+  const gradientGrid = qs('#gradient-grid');
+  const textureGrid = qs('#texture-grid');
+
+  // home elements
+  const homeGallery = qs('#home-gallery');
+  const searchInput = qs('#search-input');
+  const searchBtn = qs('#search-btn');
+  const searchResults = qs('#search-results');
+
+  // pro elements
+  const proNameInput = qs('#pro-name-input');
+  const proNameImage = qs('#pro-name-image');
+  const proCanvas = qs('#pro-canvas');
+  const proGenerate = qs('#pro-generate');
+  const proDownload = qs('#pro-download');
+  const colorTypeBtns = qsa('.color-type');
+  const solidPicker = qs('#solid-picker');
+  const gradientPicker = qs('#gradient-picker');
+  const texturePicker = qs('#texture-picker');
+  const solidColor = qs('#solid-color');
+  const proTexturesContainer = qs('#texture-grid');
+  const proGradientsContainer = qs('#gradient-grid');
+
+  // names elements
+  const namesInput = qs('#names-input');
+  const namesResults = qs('#names-results');
+
+  // about/contact
+  const aboutBox = qs('#about-box');
+  const contactBox = qs('#contact-box');
+  const contactImages = qs('#contact-images');
+
+  /* ---------- helper: show page ---------- */
+  function showPage(id){
+    pages.forEach(p => p.classList.remove('active'));
+    const target = qs(`#${id}`);
+    if (target) target.classList.add('active');
+    // update active link style
+    qsa('#sections-links li').forEach(li => li.classList.toggle('active', li.dataset.id === id));
   }
 
-  // read file -> dataURL
-  function fileToDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = reject;
-      fr.readAsDataURL(file);
+  /* ---------- welcome ---------- */
+  btnStart && btnStart.addEventListener('click', () => {
+    if (welcome) welcome.style.display = 'none';
+    try { localStorage.setItem('decor_hide_welcome','1'); } catch(e){}
+  });
+  // if previously hidden
+  try { if (localStorage.getItem('decor_hide_welcome') === '1'){ if (welcome) welcome.style.display='none'; } } catch(e){}
+
+  /* ---------- sidebar toggles ---------- */
+  btnMenu && btnMenu.addEventListener('click', () => sidebar.classList.add('active'));
+  closeSidebar && closeSidebar.addEventListener('click', () => sidebar.classList.remove('active'));
+  // section clicks
+  sectionsLinks && sectionsLinks.addEventListener('click', (ev) => {
+    const li = ev.target.closest('li');
+    if (!li) return;
+    const id = li.dataset.id;
+    showPage(id);
+    sidebar.classList.remove('active');
+  });
+
+  /* ---------- populate sections manage UI ---------- */
+  function loadSectionsUI(){
+    const manageList = qs('#manage-sections');
+    manageList.innerHTML = '';
+    let sections = JSON.parse(localStorage.getItem(STORAGE_KEYS.SECTIONS) || '[]');
+    sections.forEach((s, idx) => {
+      const li = document.createElement('li');
+      li.className = 'card';
+      li.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+        <span>${s.title}</span>
+        <div>
+          <button class="btn small" data-action="edit" data-idx="${idx}">تعديل</button>
+          <button class="btn small" data-action="del" data-idx="${idx}">حذف</button>
+        </div>
+      </div>`;
+      manageList.appendChild(li);
     });
-  }
-
-  // read file -> text
-  function fileToText(file) {
-    return new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = reject;
-      fr.readAsText(file);
-    });
-  }
-
-  // تنزيل dataURL
-  function downloadDataURL(dataURL, filename = "download.png") {
-    const a = create("a", { href: dataURL });
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-
-  /* ---------------------------
-     حالة التطبيق (محلية - localStorage)
-     --------------------------- */
-  const STORAGE_KEY = "zakhrafa_v1_state_v2";
-
-  // البنية الافتراضية للحالة
-  const defaultState = {
-    homeImages: [], // [{id,name,src,uploadedAt}]
-    overlays: [], // [dataURL]
-    proFonts: [], // [{id,name}]
-    nameStyles: [], // [{id,name,content}]  // json/js contents
-    aboutText: "هذا التطبيق يحاكي عالم الزخرفة والتصاميم الاحترافية.",
-    contactText: "تواصل معنا عبر القنوات الموجودة.",
-    contactImages: [], // [{id,src,link}]
-    appearance: {
-      font: "Amiri",
-      bgImage: "bg.png",
-      topbarImage: "shbg.png",
-      appIcon: "abu7amza.png",
-    },
-    admin: {
-      password: "asd321",
-      loggedIn: false,
-    },
-    updatedAt: Date.now(),
-  };
-
-  let state = {};
-
-  function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        state = JSON.parse(JSON.stringify(defaultState));
-        saveState();
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      // merge to keep defaults for any missing keys
-      state = Object.assign({}, defaultState, parsed);
-    } catch (e) {
-      console.warn("loadState error", e);
-      state = JSON.parse(JSON.stringify(defaultState));
-    }
-  }
-
-  function saveState() {
-    try {
-      state.updatedAt = Date.now();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-      console.warn("saveState error", e);
-    }
-  }
-
-  /* ---------------------------
-     عناصر DOM الأساسية (تتطابق مع index.html)
-     --------------------------- */
-  const refs = {};
-  function collectRefs() {
-    refs.enterApp = $("#enterApp");
-    refs.welcomeScreen = $("#welcomeScreen");
-    refs.welcomeSectionsBtn = $("#welcomeSectionsBtn");
-    refs.welcomeCreateBtn = $("#welcomeCreateBtn");
-
-    refs.menuBtn = $("#menuBtn");
-    refs.sideMenu = $("#sideMenu");
-    refs.closeSide = $("#closeSide");
-    refs.menuItems = $$(".menu-item");
-
-    refs.settingsBtn = $("#settingsBtn");
-    refs.adminOverlay = $("#adminOverlay");
-    refs.adminLogin = $("#adminLogin");
-    refs.adminPassword = $("#adminPassword");
-    refs.adminEnter = $("#adminEnter");
-    refs.adminClose = $("#adminClose");
-    refs.adminContent = $("#adminContent");
-    refs.adminTabs = $$(".admin-tab");
-    refs.adminTabContents = $$(".admin-tab-content");
-    refs.closeAdmin = $("#closeAdmin");
-
-    // Home
-    refs.searchInput = $("#searchInput");
-    refs.searchBtn = $("#searchBtn");
-    refs.searchResults = $("#searchResults");
-    refs.homeImagesInput = $("#homeImagesInput");
-    refs.homeImagesGallery = $("#homeImagesGallery");
-
-    // Pro Decor
-    refs.decorNameInput = $("#decorNameInput");
-    refs.decorImageInput = $("#decorImageInput");
-    refs.decorFontSelect = $("#decorFontSelect");
-    refs.decorBgBtn = $("#decorBgBtn");
-    refs.colorTypeSelect = $("#colorTypeSelect");
-    refs.colorPickerSection = $("#colorPickerSection");
-    refs.solidColorPicker = $("#solidColorPicker");
-    refs.solidColor = $("#solidColor");
-    refs.gradientGallery = $("#gradientGallery");
-    refs.overlayGallery = $("#overlayGallery");
-    refs.decorPreview = $("#decorPreview");
-    refs.downloadDecorBtn = $("#downloadDecorBtn");
-
-    // Name Decor
-    refs.nameInput = $("#nameInput");
-    refs.nameResults = $("#nameResults");
-    refs.nameStylesInput = $("#nameStylesInput");
-
-    // About / Contact
-    refs.aboutTextEditor = $("#aboutTextEditor");
-    refs.aboutText = $("#aboutText");
-    refs.contactTextEditor = $("#contactTextEditor");
-    refs.contactText = $("#contactText");
-    refs.contactImagesInput = $("#contactImagesInput");
-    refs.contactImagesContainer = $("#contactImagesContainer");
-
-    // background img
-    refs.backgroundImg = $(".background img");
-  }
-
-  /* ---------------------------
-     وظائف الواجهة الأساسية
-     --------------------------- */
-  function setupWelcome() {
-    if (!refs.enterApp || !refs.welcomeScreen) return;
-
-    refs.enterApp.addEventListener("click", () => {
-      // إخفاء الترحيب تدريجيًا
-      refs.welcomeScreen.classList.add("hidden");
-    });
-
-    // أزرار إضافية: عرض الأقسام أو الإبداع
-    refs.welcomeSectionsBtn &&
-      refs.welcomeSectionsBtn.addEventListener("click", () => {
-        refs.welcomeScreen.classList.add("hidden");
-        showSection("home");
-      });
-
-    refs.welcomeCreateBtn &&
-      refs.welcomeCreateBtn.addEventListener("click", () => {
-        refs.welcomeScreen.classList.add("hidden");
-        showSection("proDecor");
-      });
-  }
-
-  function setupSideMenu() {
-    if (refs.menuBtn && refs.sideMenu) {
-      refs.menuBtn.addEventListener("click", () =>
-        refs.sideMenu.classList.add("active")
-      );
-    }
-    if (refs.closeSide && refs.sideMenu) {
-      refs.closeSide.addEventListener("click", () =>
-        refs.sideMenu.classList.remove("active")
-      );
-    }
-
-    // تنفيذ التنقل عند اختيار قسم
-    refs.menuItems.forEach((item) => {
-      item.addEventListener("click", (ev) => {
-        const section = item.getAttribute("data-section");
-        if (section) showSection(section);
-        refs.sideMenu.classList.remove("active");
-      });
-    });
-  }
-
-  function setupAdminPanel() {
-    if (!refs.settingsBtn || !refs.adminOverlay) return;
-
-    refs.settingsBtn.addEventListener("click", () => {
-      // افتح اللوحة: إن كان مسجلاً داخلاً اعرض المحتوى
-      if (state.admin && state.admin.loggedIn) {
-        showAdminContent();
-      } else {
-        showAdminLogin();
-      }
-    });
-
-    refs.adminEnter &&
-      refs.adminEnter.addEventListener("click", () => {
-        const pass = (refs.adminPassword && refs.adminPassword.value) || "";
-        if (pass === state.admin.password) {
-          state.admin.loggedIn = true;
-          saveState();
-          showAdminContent();
+    manageList.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', (e)=>{
+        const action = b.dataset.action, idx = parseInt(b.dataset.idx,10);
+        if(action === 'del'){
+          sections.splice(idx,1);
+          localStorage.setItem(STORAGE_KEYS.SECTIONS, JSON.stringify(sections));
+          renderSectionsLinks();
+          loadSectionsUI();
+          flash('تم حذف القسم');
         } else {
-          alert("كلمة المرور غير صحيحة");
+          const newTitle = prompt('اكتب اسم جديد للقسم', sections[idx].title);
+          if(newTitle){ sections[idx].title = newTitle; localStorage.setItem(STORAGE_KEYS.SECTIONS, JSON.stringify(sections)); renderSectionsLinks(); loadSectionsUI(); flash('تم التعديل'); }
         }
       });
+    });
+  }
 
-    refs.adminClose &&
-      refs.adminClose.addEventListener("click", () => {
-        // إغلاق العرض وافراغ حقل كلمة المرور
-        refs.adminOverlay.classList.add("hidden");
-        if (refs.adminPassword) refs.adminPassword.value = "";
-      });
-
-    // إغلاق عند الضغط على زر إغلاق داخل المحتوى
-    refs.closeAdmin &&
-      refs.closeAdmin.addEventListener("click", () => {
-        refs.adminOverlay.classList.add("hidden");
-      });
-
-    // tabs داخل لوحة التحكم
-    refs.adminTabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const t = tab.getAttribute("data-tab");
-        refs.adminTabs.forEach((x) => x.classList.remove("active"));
-        tab.classList.add("active");
-        refs.adminTabContents.forEach((ct) => ct.classList.add("hidden"));
-        const node = $(`#${t}`);
-        if (node) node.classList.remove("hidden");
+  /* ---------- render sections links to sidebar ---------- */
+  function renderSectionsLinks(){
+    const links = qs('#sections-links');
+    links.innerHTML = '';
+    let sections = JSON.parse(localStorage.getItem(STORAGE_KEYS.SECTIONS) || '[]');
+    sections.forEach(s=>{
+      const li = document.createElement('li');
+      li.dataset.id = s.id;
+      li.textContent = s.title;
+      links.appendChild(li);
+    });
+    // rebind
+    renderSectionsLinksBind();
+  }
+  function renderSectionsLinksBind(){
+    qsa('#sections-links li').forEach(li=>{
+      li.addEventListener('click', ()=> {
+        showPage(li.dataset.id);
+        sidebar.classList.remove('active');
       });
     });
+  }
+  renderSectionsLinks();
 
-    // إغلاق عند النقر على الخلفية (خارج الصندوق)
-    refs.adminOverlay.addEventListener("click", (e) => {
-      if (e.target === refs.adminOverlay) {
-        refs.adminOverlay.classList.add("hidden");
+  // add-section btn
+  qs('#add-section-btn') && qs('#add-section-btn').addEventListener('click', ()=>{
+    const name = qs('#new-section-name').value.trim();
+    if(!name) return flash('اكتب اسم القسم أولاً');
+    let sections = JSON.parse(localStorage.getItem(STORAGE_KEYS.SECTIONS) || '[]');
+    const id = name.replace(/\s+/g,'-').toLowerCase() + '-' + Date.now();
+    sections.push({id, title: name});
+    localStorage.setItem(STORAGE_KEYS.SECTIONS, JSON.stringify(sections));
+    qs('#new-section-name').value='';
+    renderSectionsLinks();
+    loadSectionsUI();
+    flash('تم إضافة القسم');
+  });
+
+  loadSectionsUI();
+
+  /* ---------- PANEL (login + main) ---------- */
+  qs('#btn-settings').addEventListener('click', ()=>{
+    panelOverlay.style.display = 'flex';
+    panelLogin.style.display = 'block';
+    panelMain.style.display = 'none';
+    panelPassInput && panelPassInput.focus();
+  });
+  panelCloseBtn.addEventListener('click', ()=>{
+    panelOverlay.style.display = 'none';
+  });
+  panelCloseMain && panelCloseMain.addEventListener('click', ()=> {
+    panelOverlay.style.display = 'none';
+  });
+
+  // login logic
+  panelLoginBtn.addEventListener('click', ()=>{
+    const typed = panelPassInput.value.trim();
+    const stored = localStorage.getItem(STORAGE_KEYS.PASS) || 'asd321';
+    if(typed === stored){
+      panelLogin.style.display = 'none';
+      panelMain.style.display = 'block';
+      // load panel data
+      loadPanelData();
+      flash('تم تسجيل الدخول');
+    } else {
+      alert('كلمة المرور خاطئة');
+    }
+  });
+
+  /* ---------- panel: save password ---------- */
+  qs('#save-password') && qs('#save-password').addEventListener('click', ()=>{
+    const np = qs('#new-password').value.trim();
+    if(!np) return flash('اكتب كلمة مرور جديدة');
+    localStorage.setItem(STORAGE_KEYS.PASS, np);
+    qs('#new-password').value = '';
+    flash('تم تغيير كلمة المرور');
+  });
+
+  /* ---------- fonts list default (10) ---------- */
+  const defaultFonts = [
+    {name:'Amiri',css:"'Amiri', serif", cdn:"https://fonts.googleapis.com/css2?family=Amiri&display=swap"},
+    {name:'Cairo',css:"'Cairo', sans-serif", cdn:"https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap"},
+    {name:'Tajawal',css:"'Tajawal', sans-serif", cdn:"https://fonts.googleapis.com/css2?family=Tajawal&display=swap"},
+    {name:'Noto Kufi',css:"'Noto Kufi Arabic', sans-serif", cdn:"https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic&display=swap"},
+    {name:'Scheherazade',css:"'Scheherazade New', serif", cdn:"https://fonts.googleapis.com/css2?family=Scheherazade+New&display=swap"},
+    {name:'Reem Kufi',css:"'Reem Kufi', sans-serif", cdn:"https://fonts.googleapis.com/css2?family=Reem+Kufi&display=swap"},
+    {name:'Segoe UI',css:"'Segoe UI', system-ui", cdn: ''},
+    {name:'Arial',css:"Arial, sans-serif", cdn: ''},
+    {name:'Times New Roman',css:"'Times New Roman', serif", cdn: ''},
+    {name:'Custom (مرفوع)',css:'', cdn:''}
+  ];
+  function populateFontLists(){
+    const sel = qs('#font-list');
+    const sel2 = qs('#pro-font-select');
+    sel.innerHTML = '';
+    sel2.innerHTML = '';
+    defaultFonts.forEach((f, idx)=>{
+      const o = document.createElement('option');
+      o.value = idx;
+      o.textContent = f.name;
+      sel.appendChild(o);
+      const o2 = o.cloneNode(true);
+      sel2.appendChild(o2);
+      // inject CDN if any
+      if(f.cdn){
+        const link = document.createElement('link');
+        link.rel='stylesheet'; link.href = f.cdn; document.head.appendChild(link);
       }
     });
   }
+  populateFontLists();
 
-  function showAdminLogin() {
-    refs.adminOverlay.classList.remove("hidden");
-    const login = $("#adminLogin");
-    const content = $("#adminContent");
-    login && login.classList.remove("hidden");
-    content && content.classList.add("hidden");
-  }
+  // apply chosen font to body
+  qs('#font-list').addEventListener('change', ()=>{
+    const idx = parseInt(qs('#font-list').value,10);
+    const f = defaultFonts[idx];
+    if(f && f.css) document.body.style.fontFamily = f.css;
+    flash('تم تطبيق الخط مؤقتاً');
+  });
 
-  function showAdminContent() {
-    refs.adminOverlay.classList.remove("hidden");
-    const login = $("#adminLogin");
-    const content = $("#adminContent");
-    login && login.classList.add("hidden");
-    content && content.classList.remove("hidden");
-    // تلقائيًا تفعيل أول تبويب
-    const firstTab = refs.adminTabs && refs.adminTabs[0];
-    firstTab && firstTab.click();
-    // اعرض بيانات الحاضر
-    fillAdminFieldsFromState();
-  }
-
-  function fillAdminFieldsFromState() {
-    // about / contact editors
-    if (refs.aboutTextEditor) refs.aboutTextEditor.value = state.aboutText || "";
-    if (refs.contactTextEditor) refs.contactTextEditor.value = state.contactText || "";
-    // home images: لا نملأ input file لكن نعرض الجاليري
+  /* ---------- upload home images ---------- */
+  const homeUploadInput = qs('#home-upload');
+  qs('#home-upload-btn').addEventListener('click', ()=>{
+    const files = homeUploadInput.files;
+    if(!files || files.length===0) return flash('اختر صوراً أولاً');
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.HOME_IMAGES) || '[]');
+    Array.from(files).forEach(f=>{
+      const url = URL.createObjectURL(f);
+      stored.push({name:f.name,url,ts:Date.now()});
+    });
+    localStorage.setItem(STORAGE_KEYS.HOME_IMAGES, JSON.stringify(stored));
+    homeUploadInput.value='';
     renderHomeGallery();
-    renderContactGallery();
-    // decor fonts / overlays displayed via separate renderers
-    renderOverlayGallery();
-    renderDecorFontsIntoSelect();
+    flash('تم رفع الصور للصفحة الرئيسية');
+  });
+
+  function renderHomeGallery(){
+    homeGallery.innerHTML = '';
+    const imgs = JSON.parse(localStorage.getItem(STORAGE_KEYS.HOME_IMAGES) || '[]');
+    imgs.forEach((it, idx)=>{
+      const img = document.createElement('img');
+      img.src = it.url; img.alt = it.name;
+      img.className = 'card';
+      img.addEventListener('click', ()=> openImageModal(it.url, it.name));
+      homeGallery.appendChild(img);
+    });
+  }
+  renderHomeGallery();
+
+  /* ---------- search images ---------- */
+  searchBtn.addEventListener('click', ()=> {
+    const q = searchInput.value.trim().toLowerCase();
+    const imgs = JSON.parse(localStorage.getItem(STORAGE_KEYS.HOME_IMAGES) || '[]');
+    const res = imgs.filter(i => i.name.toLowerCase().includes(q));
+    searchResults.innerHTML = '';
+    if(res.length === 0) { searchResults.textContent = 'لا توجد نتائج'; return; }
+    res.forEach(it=>{
+      const card = document.createElement('div'); card.className='card';
+      const img = document.createElement('img'); img.src=it.url; img.alt=it.name;
+      const btn = document.createElement('button'); btn.className='btn'; btn.textContent='تحميل';
+      btn.addEventListener('click', ()=> downloadUrl(it.url, it.name));
+      card.appendChild(img); card.appendChild(btn);
+      searchResults.appendChild(card);
+    });
+  });
+
+  /* ---------- open image modal ---------- */
+  function openImageModal(url, name){
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:99999';
+    modal.innerHTML = `<div style="background:#111;padding:16px;border-radius:10px;max-width:90%;max-height:90%;overflow:auto;text-align:center">
+      <img src="${url}" style="max-width:100%;height:auto;border-radius:8px"><div style="margin-top:10px"><button class="btn" id="dl">تحميل</button> <button class="btn" id="close">إغلاق</button></div></div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#close').addEventListener('click', ()=> modal.remove());
+    modal.querySelector('#dl').addEventListener('click', ()=> downloadUrl(url, name));
   }
 
-  /* ---------------------------
-     عرض الأقسام (التبديل)
-     --------------------------- */
-  function showSection(id) {
-    if (!id) return;
-    const sections = $$(".app-section");
-    sections.forEach((s) => s.classList.add("hidden"));
-    const target = $(`#${id}`);
-    if (target) {
-      target.classList.remove("hidden");
-      target.scrollIntoView({ behavior: "smooth" });
-    }
+  function downloadUrl(url, name){
+    const a = document.createElement('a'); a.href = url; a.download = name || 'image';
+    document.body.appendChild(a); a.click(); a.remove();
   }
 
-  /* ---------------------------
-     الصفحة الرئيسية: رفع صور + البحث + عرض
-     --------------------------- */
-  function setupHomeControls() {
-    // رفع صور من لوحة التحكم
-    const homeInput = refs.homeImagesInput;
-    if (homeInput) {
-      homeInput.addEventListener("change", async (e) => {
-        const files = Array.from(e.target.files || []);
-        for (const f of files) {
-          try {
-            const data = await fileToDataURL(f);
-            const id = "h_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
-            state.homeImages.unshift({
-              id,
-              name: f.name,
-              src: data,
-              uploadedAt: Date.now(),
+  /* ---------- PRO: load textures & gradients ---------- */
+  // gradients example (populate with 12 nice gradients)
+  const gradients = [
+    'linear-gradient(90deg,#ffd700,#ffb400)',
+    'linear-gradient(90deg,#ffb347,#ffcc33)',
+    'linear-gradient(90deg,#f7971e,#ffd200)',
+    'linear-gradient(90deg,#ff9a9e,#fecfef)',
+    'linear-gradient(90deg,#a18cd1,#fbc2eb)',
+    'linear-gradient(90deg,#43e97b,#38f9d7)',
+    'linear-gradient(90deg,#30cfd0,#330867)',
+    'linear-gradient(90deg,#f6d365,#fda085)',
+    'linear-gradient(90deg,#fbc2eb,#a6c1ee)',
+    'linear-gradient(90deg,#84fab0,#8fd3f4)',
+    'linear-gradient(90deg,#cfd9df,#e2ebf0)',
+    'linear-gradient(90deg,#f093fb,#f5576c)'
+  ];
+  function renderGradientGrid(){
+    if(!qs('#gradient-grid')) return;
+    qs('#gradient-grid').innerHTML = '';
+    gradients.forEach((g, idx)=>{
+      const d = document.createElement('div'); d.className='card';
+      d.style.width='80px'; d.style.height='50px'; d.style.background = g; d.style.borderRadius='6px'; d.style.cursor='pointer';
+      d.addEventListener('click', ()=> {
+        // save selection to temporary
+        proState.gradient = g;
+        flash('تم اختيار التدرج');
+      });
+      qs('#gradient-grid').appendChild(d);
+    });
+  }
+  renderGradientGrid();
+
+  // textures from localStorage
+  function renderTextureGrid(){
+    const arr = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_TEXTURES) || '[]');
+    qs('#texture-grid').innerHTML = '';
+    arr.forEach((it, idx)=>{
+      const img = document.createElement('img'); img.src = it.url; img.style.width='80px'; img.style.height='50px'; img.style.objectFit='cover'; img.style.borderRadius='6px'; img.style.cursor='pointer';
+      img.addEventListener('click', ()=> {
+        proState.texture = it.url; flash('تم اختيار تلبيس');
+      });
+      qs('#texture-grid').appendChild(img);
+    });
+  }
+  renderTextureGrid();
+
+  /* ---------- panel uploads for pro textures/fonts/styles ---------- */
+  qs('#pro-textures') && qs('#pro-textures').addEventListener('change', (e)=>{
+    const files = e.target.files;
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_TEXTURES) || '[]');
+    Array.from(files).forEach(f=>{
+      const url = URL.createObjectURL(f);
+      stored.push({name:f.name,url,ts:Date.now()});
+    });
+    localStorage.setItem(STORAGE_KEYS.PRO_TEXTURES, JSON.stringify(stored));
+    renderTextureGrid(); flash('تم رفع التلبيسات');
+    qs('#pro-textures').value='';
+  });
+
+  // pro fonts - register font-face dynamically
+  qs('#pro-fonts') && qs('#pro-fonts').addEventListener('change', (e)=>{
+    const files = e.target.files;
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_FONTS) || '[]');
+    Array.from(files).forEach(f=>{
+      const url = URL.createObjectURL(f);
+      const id = 'font_' + Date.now() + '_' + Math.floor(Math.random()*9999);
+      stored.push({id,name:f.name,url});
+      // inject @font-face
+      const style = document.createElement('style');
+      style.textContent = `@font-face{font-family:'${id}'; src: url('${url}');}`;
+      document.head.appendChild(style);
+      // add to pro font select
+      const opt = document.createElement('option'); opt.value = id; opt.textContent = f.name;
+      proFontSelect.appendChild(opt);
+    });
+    localStorage.setItem(STORAGE_KEYS.PRO_FONTS, JSON.stringify(stored));
+    flash('تم رفع الخطوط الاحترافية');
+    qs('#pro-fonts').value='';
+  });
+
+  /* ---------- name styles upload ---------- */
+  qs('#name-styles-upload') && qs('#name-styles-upload').addEventListener('change', (e)=>{
+    const files = e.target.files;
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.NAME_STYLES) || '[]');
+    Array.from(files).forEach(f=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        stored.push({name:f.name,content:reader.result,ts:Date.now()});
+        localStorage.setItem(STORAGE_KEYS.NAME_STYLES, JSON.stringify(stored));
+        flash('تم حفظ ستايل زخرفة الأسماء');
+        renderNameStyles(); // refresh available templates if needed
+      };
+      reader.readAsText(f);
+    });
+    qs('#name-styles-upload').value='';
+  });
+
+  function renderNameStyles(){
+    // placeholder: list uploaded style names (actual execution of js/json templates is complex;
+    // We'll allow JSON that contains templates to be used)
+    const arr = JSON.parse(localStorage.getItem(STORAGE_KEYS.NAME_STYLES) || '[]');
+    namesResults.innerHTML = '';
+    arr.forEach((s, idx)=>{
+      const card = document.createElement('div'); card.className='card card-text';
+      card.textContent = s.name;
+      // clicking previews sample result using content if json
+      card.addEventListener('click', ()=>{
+        // if json and contains 'template' array, show some results
+        try {
+          const j = JSON.parse(s.content);
+          if(Array.isArray(j.templates)){
+            namesResults.innerHTML = '';
+            j.templates.slice(0,10).forEach(t=>{
+              const el = document.createElement('div'); el.className='card-text'; el.style.padding='8px'; el.textContent = t.replace(/\{name\}/g, namesInput.value || 'أحمد');
+              namesResults.appendChild(el);
             });
-          } catch (err) {
-            console.warn("home image read error", err);
-          }
-        }
-        // تحجيم المصفوفة لو لزم
-        if (state.homeImages.length > 500) state.homeImages.length = 500;
-        saveState();
-        renderHomeGallery();
-      });
-    }
-
-    // زر البحث
-    if (refs.searchBtn && refs.searchInput) {
-      refs.searchBtn.addEventListener("click", () => {
-        const q = (refs.searchInput.value || "").trim().toLowerCase();
-        if (!q) {
-          renderHomeGallery();
-          return;
-        }
-        const results = (state.homeImages || []).filter((img) =>
-          (img.name || "").toLowerCase().includes(q)
-        );
-        renderSearchResults(results);
-      });
-
-      refs.searchInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") refs.searchBtn.click();
-      });
-    }
-  }
-
-  function renderHomeGallery() {
-    if (!refs.homeImagesGallery) return;
-    refs.homeImagesGallery.innerHTML = "";
-    const arr = state.homeImages || [];
-    if (!arr.length) {
-      refs.homeImagesGallery.innerHTML = `<p class="small" style="opacity:.8">لا توجد صور مضافة بعد.</p>`;
-      return;
-    }
-    arr.forEach((it, idx) => {
-      const card = create("div", { class: "grid-card" });
-      const img = create("img", { src: it.src, alt: it.name });
-      const meta = create("div", { class: "card-meta" });
-      const name = create("div", { class: "name", text: it.name || `image-${idx+1}` });
-      const actions = create("div", { class: "actions" });
-      const dl = create("button", { class: "card-actions download-small", text: "تحميل" });
-      dl.addEventListener("click", () => downloadDataURL(it.src, (it.name || `image-${idx+1}`)));
-      actions.appendChild(dl);
-      meta.appendChild(name);
-      meta.appendChild(actions);
-      card.appendChild(img);
-      card.appendChild(meta);
-      refs.homeImagesGallery.appendChild(card);
-    });
-  }
-
-  function renderSearchResults(list) {
-    if (!refs.searchResults) return;
-    refs.searchResults.innerHTML = "";
-    const arr = list || [];
-    if (!arr.length) {
-      refs.searchResults.innerHTML = `<p class="small" style="opacity:.8">لا توجد نتائج.</p>`;
-      return;
-    }
-    arr.forEach((it, idx) => {
-      const card = create("div", { class: "grid-card" });
-      const img = create("img", { src: it.src, alt: it.name });
-      const meta = create("div", { class: "card-meta" });
-      const name = create("div", { class: "name", text: it.name || `image-${idx+1}` });
-      const actions = create("div", { class: "actions" });
-      const dl = create("button", { class: "card-actions download-small", text: "تحميل" });
-      dl.addEventListener("click", () => downloadDataURL(it.src, (it.name || `image-${idx+1}`)));
-      actions.appendChild(dl);
-      meta.appendChild(name);
-      meta.appendChild(actions);
-      card.appendChild(img);
-      card.appendChild(meta);
-      refs.searchResults.appendChild(card);
-    });
-  }
-
-  /* ---------------------------
-     زخرفة الأسماء: رفع ستايلات (js/json) وعرض نتائج مبدئية
-     --------------------------- */
-  function setupNameStylesUploader() {
-    const input = refs.nameStylesInput;
-    if (!input) return;
-    input.addEventListener("change", (e) => {
-      const files = Array.from(e.target.files || []);
-      files.forEach((file) => {
-        fileToText(file)
-          .then((content) => {
-            const id = "ns_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-            state.nameStyles.unshift({ id, name: file.name, content });
-            saveState();
-            alert(`تمت إضافة ملف زخرفة: ${file.name}`);
-          })
-          .catch((err) => {
-            console.warn("name style file read err", err);
-            alert("فشل في قراءة الملف: " + file.name);
-          });
-      });
-    });
-  }
-
-  // وظيفة لتوليد نتائج زخرفة أسماء سريعة من الستايلات الموجودة
-  function generateNameDecorationsFromStyles(name) {
-    const res = [];
-    // قوالب افتراضية بسيطة (2x50 لاحقًا ستكون مأخوذة من ملفات)
-    const baseTemplates = [
-      (n) => `★ ${n} ★`,
-      (n) => `♡ ${n} ♡`,
-      (n) => `【${n}】`,
-      (n) => `《${n}》`,
-      (n) => `✿ ${n} ✿`,
-      (n) => `⇝ ${n} ⇜`,
-      (n) => `~ ${n} ~`,
-      (n) => `ـ ${n} ـ`,
-      (n) => `● ${n} ●`,
-      (n) => `✦ ${n} ✦`,
-    ];
-    baseTemplates.forEach((fn) => res.push(fn(name)));
-
-    // استخرج الستايلات المرفوعة (json/js)
-    (state.nameStyles || []).forEach((st) => {
-      // إذا كان محتوى JSON يحتوي على مصفوفة قوالب
-      try {
-        const parsed = JSON.parse(st.content);
-        if (Array.isArray(parsed)) {
-          parsed.slice(0, 50).forEach((tpl) => {
-            // tpl قد يكون نصًا أو كائنًا مع مفتاح template
-            if (typeof tpl === "string") {
-              res.push(tpl.replace(/\{\{name\}\}/g, name));
-            } else if (tpl && tpl.template) {
-              res.push(String(tpl.template).replace(/\{\{name\}\}/g, name));
-            }
-          });
-          return;
-        }
-      } catch (e) {
-        // ليس JSON
-      }
-      // إذا كان ملف JS، حاول تنفيذ دالة apply إذا وُجدت
-      try {
-        // نحاول إنشاء دالة محمية تقبل name وترجع مصفوفة أو نص
-        const wrapper = `(function(){ ${st.content}; if(typeof apply === "function"){ try{ return apply(${JSON.stringify(name)}); }catch(e){ return null;} } if(typeof module !== "undefined" && module.exports){ try{ return module.exports(${JSON.stringify(name)}); }catch(e){ return null;} } return null; })()`;
-        // eslint-disable-next-line no-eval
-        const out = eval(wrapper);
-        if (Array.isArray(out)) {
-          out.slice(0, 50).forEach((o) => res.push(String(o)));
-          return;
-        } else if (typeof out === "string") {
-          res.push(out);
-          return;
-        }
-      } catch (err) {
-        console.warn("eval style err", st.name, err);
-      }
-    });
-
-    // حد أقصى 100 نتيجة (2x50)
-    return res.slice(0, 100);
-  }
-
-  function renderNameResults(name) {
-    if (!refs.nameResults) return;
-    refs.nameResults.innerHTML = "";
-    if (!name || !name.trim()) {
-      refs.nameResults.innerHTML = `<p class="small" style="opacity:.8">أدخل الاسم لعرض النتائج.</p>`;
-      return;
-    }
-    const arr = generateNameDecorationsFromStyles(name.trim());
-    if (!arr.length) {
-      refs.nameResults.innerHTML = `<p class="small" style="opacity:.8">لا توجد أنماط حالياً.</p>`;
-      return;
-    }
-    arr.forEach((txt) => {
-      const box = create("div", { class: "name-box" });
-      box.textContent = txt;
-      refs.nameResults.appendChild(box);
-    });
-  }
-
-  if (refs.nameInput) {
-    refs.nameInput.addEventListener(
-      "input",
-      debounce((e) => renderNameResults(e.target.value), 160)
-    );
-  }
-
-  /* ---------------------------
-     إدارة الصور الخاصة بالتواصل (Contact images)
-     --------------------------- */
-  function setupContactImagesUploader() {
-    const inp = refs.contactImagesInput;
-    if (!inp) return;
-    inp.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const f of files) {
-        try {
-          const data = await fileToDataURL(f);
-          const id = "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-          state.contactImages.unshift({ id, src: data, link: "" });
-        } catch (err) {
-          console.warn("contact image read err", err);
-        }
-      }
-      saveState();
-      renderContactGallery();
-    });
-  }
-
-  function renderContactGallery() {
-    if (!refs.contactImagesContainer) return;
-    refs.contactImagesContainer.innerHTML = "";
-    const arr = state.contactImages || [];
-    if (!arr.length) {
-      refs.contactImagesContainer.innerHTML = `<p class="small" style="opacity:.8">لا توجد صور تواصل مضافة.</p>`;
-      return;
-    }
-    arr.forEach((it) => {
-      const wrapper = create("div", { class: "contact-item" });
-      const img = create("img", { src: it.src });
-      img.className = "contact-img";
-      const input = create("input", { type: "url" });
-      input.placeholder = "رابط الصورة (اختياري)";
-      input.value = it.link || "";
-      input.addEventListener("input", (e) => {
-        it.link = e.target.value;
-        saveState();
-      });
-      wrapper.appendChild(img);
-      wrapper.appendChild(input);
-      wrapper.addEventListener("click", () => {
-        if (it.link) window.open(it.link, "_blank");
-      });
-      refs.contactImagesContainer.appendChild(wrapper);
-    });
-  }
-
-  /* ---------------------------
-     Overlays (تلبيسات) ورفعها من لوحة التحكم
-     --------------------------- */
-  function setupOverlaysUploader() {
-    const input = $("#colorOverlaysInput");
-    if (!input) return;
-    input.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const f of files) {
-        try {
-          const data = await fileToDataURL(f);
-          state.overlays.unshift(data);
-        } catch (err) {
-          console.warn("overlay read err", err);
-        }
-      }
-      if (state.overlays.length > 300) state.overlays.length = 300;
-      saveState();
-      renderOverlayGallery();
-    });
-  }
-
-  function renderOverlayGallery() {
-    const container = refs.overlayGallery;
-    if (!container) return;
-    container.innerHTML = "";
-    const arr = state.overlays || [];
-    if (!arr.length) {
-      container.innerHTML = `<p class="small" style="opacity:.8">لا توجد تلبيسات مضافة.</p>`;
-      return;
-    }
-    arr.forEach((src, i) => {
-      const wrap = create("div", { class: "overlay-sample" });
-      const img = create("img", { src });
-      img.style.width = "100%";
-      img.style.height = "72px";
-      img.style.objectFit = "cover";
-      img.addEventListener("click", () => {
-        // عند النقر نُعلم جزء الزخرفة (الجزء الثاني) أن هذه التلبيسة اخترت
-        // نستخدم حدث مخصص لإبلاغ الجزء الثاني
-        window.dispatchEvent(new CustomEvent("zkh-overlay-selected", { detail: { index: i, src } }));
-      });
-      wrap.appendChild(img);
-      container.appendChild(wrap);
-    });
-  }
-
-  /* ---------------------------
-     Fonts upload (رفع خطوط من admin)
-     --------------------------- */
-  function setupFontsUploader() {
-    const input = $("#proFontsInput");
-    if (!input) return;
-    input.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const f of files) {
-        try {
-          const name = f.name.replace(/\.[^/.]+$/, "");
-          // نحافظ على اسم الخط في الحالة، ونحاول تحميله كرابط مؤقت للعرض
-          const url = URL.createObjectURL(f);
-          const id = "f_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-          // إضافة FontFace لتحميل الخط محليًا
-          try {
-            const fontFace = new FontFace(name, `url(${url})`);
-            await fontFace.load();
-            document.fonts.add(fontFace);
-            state.proFonts.unshift({ id, name });
-            saveState();
-            renderDecorFontsIntoSelect();
-            alert(`تمت إضافة الخط: ${name}`);
-          } catch (err) {
-            console.warn("FontFace load err", err);
-            // حتى لو فشل تحميل FontFace، نخزن الاسم للاختيار لاحقًا
-            state.proFonts.unshift({ id, name });
-            saveState();
-            renderDecorFontsIntoSelect();
-          }
-        } catch (err) {
-          console.warn("font upload err", err);
-        }
-      }
-    });
-  }
-
-  function renderDecorFontsIntoSelect() {
-    const sel = refs.decorFontSelect;
-    if (!sel) return;
-    const defaults = ["Amiri", "Cairo", "Reem Kufi", "Tajawal", "Changa"];
-    sel.innerHTML = `<option value="">اختيار الخط</option>`;
-    defaults.forEach((f) => {
-      const opt = create("option", { value: f, text: f });
-      sel.appendChild(opt);
-    });
-    (state.proFonts || []).forEach((f) => {
-      const opt = create("option", { value: f.name, text: f.name });
-      sel.appendChild(opt);
-    });
-  }
-
-  /* ---------------------------
-     تحميل ستايلات الزخرفة (css/js/json) من admin
-     --------------------------- */
-  function setupProStylesUploader() {
-    const input = $("#proStylesInput");
-    if (!input) return;
-    input.addEventListener("change", async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const f of files) {
-        try {
-          const txt = await fileToText(f);
-          // لو كان json -> نفحص ونخزنه؛ لو js -> نخزنه كملف لتفسير لاحق
-          const id = "ps_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
-          // نميز نوعية الملف حسب الامتداد
-          const obj = { id, name: f.name, content: txt };
-          // نحفظ كستائل عام ضمن nameStyles أو proStyles حسب الامتداد
-          if (f.name.endsWith(".json") || f.name.endsWith(".js")) {
-            state.nameStyles.unshift(obj); // يمكن استخدامه لاحقاً لزخرفة الأسماء أيضاً
           } else {
-            // css أو غيره يمكن حفظه في proStyles في المستقبل - هنا نحتفظ كاحتياط
-            state.proStyles = state.proStyles || [];
-            state.proStyles.unshift(obj);
+            flash('ملف الستايل لا يحتوي على قالب جاهز (templates)');
           }
-          saveState();
-          alert(`تمت إضافة الملف: ${f.name}`);
-        } catch (err) {
-          console.warn("pro style upload err", err);
+        } catch(err){
+          flash('ملف الستايل ليس JSON أو لا يمكن تنفيذه هنا');
         }
-      }
-    });
-  }
-
-  /* ---------------------------
-     Helpers / init / keyboard shortcuts
-     --------------------------- */
-  function init() {
-    collectRefs();
-    loadState();
-    applyAppearance();
-    setupWelcome();
-    setupSideMenu();
-    setupAdminPanel();
-    setupHomeControls();
-    setupNameStylesUploader();
-    setupContactImagesUploader();
-    setupOverlaysUploader();
-    setupFontsUploader();
-    setupProStylesUploader();
-    // رندر أولي
-    renderHomeGallery();
-    renderOverlayGallery();
-    renderDecorFontsIntoSelect();
-    renderContactGallery();
-    // about/contact default content
-    if (refs.aboutText) refs.aboutText.textContent = state.aboutText || "";
-    if (refs.contactText) refs.contactText.textContent = state.contactText || "";
-
-    // اختصار: Esc يغلق القائمة وOverlay
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        refs.sideMenu && refs.sideMenu.classList.remove("active");
-        refs.adminOverlay && refs.adminOverlay.classList.add("hidden");
-      }
-    });
-  }
-
-  // Apply appearance (backgrounds, logo)
-  function applyAppearance() {
-    try {
-      if (refs.backgroundImg && state.appearance && state.appearance.bgImage) {
-        refs.backgroundImg.src = state.appearance.bgImage;
-      }
-      const icons = $$(".app-icon");
-      icons.forEach((el) => {
-        if (el && state.appearance && state.appearance.appIcon) el.src = state.appearance.appIcon;
       });
-      const topBar = $(".top-bar");
-      if (topBar && state.appearance && state.appearance.topbarImage) {
-        topBar.style.backgroundImage = `url(${state.appearance.topbarImage})`;
-        topBar.style.backgroundSize = "cover";
-      }
-      if (state.appearance && state.appearance.font) {
-        document.body.style.fontFamily = state.appearance.font;
-      }
-    } catch (e) {
-      console.warn("applyAppearance error", e);
-    }
-  }
-
-  // تشغيل init عند جاهزية الـ DOM
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-
-  // واجهة تصحيح صغيرة للوصول للحالة من الكونصول إن لزم
-  window._zakhrafa_state = state;
-  window._zakhrafa_save = saveState;
-  window._zakhrafa_render = () => {
-    renderHomeGallery();
-    renderOverlayGallery();
-    renderContactGallery();
-    renderDecorFontsIntoSelect();
-  };
-
-  /* ==========================
-     نهاية الجزء الأول
-     ========================== */
-})();
-  /* ============================================================
-   script.js - الجزء الثاني (زخرفة احترافية: رسم الكانڤاس،
-   ألوان ثابتة/متدرج/تلبيس، تحميل، وقراءة ستايلات)
-   دمجه بعد الجزء الأول ليكون الملف مكتملًا.
-   ============================================================ */
-
-(function () {
-  "use strict";
-
-  const $ = (sel, ctx = document) => (ctx || document).querySelector(sel);
-  const $$ = (sel, ctx = document) =>
-    Array.from((ctx || document).querySelectorAll(sel));
-
-  const STORAGE_KEY = "zakhrafa_v1_state_v2";
-
-  // helper: get latest state (الجزء الأول يخزن الحالة في localStorage)
-  function getState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch (e) {
-      console.warn("getState parse error", e);
-      return null;
-    }
-  }
-
-  // ---------- عناصر DOM المستخدمة في هذا الجزء ----------
-  let decor = {
-    canvas: null,
-    ctx: null,
-    nameInput: null,
-    fontSelect: null,
-    colorTypeSelect: null,
-    solidColorInput: null,
-    gradientGallery: null,
-    overlayGallery: null,
-    downloadBtn: null,
-    imageInput: null,
-    bgBtn: null,
-  };
-
-  function collectDecorRefs() {
-    decor.canvas = $("#decorPreview");
-    decor.ctx = decor.canvas ? decor.canvas.getContext("2d") : null;
-    decor.nameInput = $("#decorNameInput");
-    decor.fontSelect = $("#decorFontSelect");
-    decor.colorTypeSelect = $("#colorTypeSelect");
-    decor.solidColorInput = $("#solidColor");
-    decor.gradientGallery = $("#gradientGallery");
-    decor.overlayGallery = $("#overlayGallery");
-    decor.downloadBtn = $("#downloadDecorBtn");
-    decor.imageInput = $("#decorImageInput");
-    decor.bgBtn = $("#decorBgBtn");
-  }
-
-  // ---------- إعدادات افتراضية ----------
-  const DEFAULT_CANVAS_W = 1200;
-  const DEFAULT_CANVAS_H = 600;
-  const DEFAULT_FONT = "Amiri";
-  let currentOverlaySrc = null; // dataURL
-  let currentGradient = null; // {from,to} or css gradient string
-  let currentSolidColor = "#111111";
-  let currentBgImage = null; // dataURL or URL
-  let currentFont = DEFAULT_FONT;
-  let currentColorType = "solid"; // solid | gradient | overlay
-
-  // مجموعة تدرجات افتراضية (يمكن استبدالها من state.gradients لاحقًا)
-  const defaultGradients = (() => {
-    const arr = [];
-    for (let i = 0; i < 20; i++) {
-      const h1 = (i * 18) % 360;
-      const h2 = (h1 + 60) % 360;
-      arr.push({ id: "g" + i, css: `linear-gradient(90deg,hsl(${h1},75%,55%),hsl(${h2},75%,45%))`, from: `hsl(${h1},75%,55%)`, to: `hsl(${h2},75%,45%)` });
-    }
-    return arr;
-  })();
-
-  // ---------- مساعدة: تحميل صورة من ملف وإرجاع dataURL ----------
-  function fileToDataURL(file) {
-    return new Promise((res, rej) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result);
-      fr.onerror = rej;
-      fr.readAsDataURL(file);
+      namesResults.appendChild(card);
     });
   }
+  renderNameStyles();
 
-  // ---------- رسم النص على الكانڤاس مع الدعم للأنماط ----------
-  function drawDecorPreviewOnCanvas() {
-    if (!decor.canvas || !decor.ctx) return;
-    const ctx = decor.ctx;
-    // canvas dimensions ثابتة داخل HTML (960x420 أو حسب index)
-    const cw = decor.canvas.width || DEFAULT_CANVAS_W;
-    const ch = decor.canvas.height || DEFAULT_CANVAS_H;
-
-    // مسح
-    ctx.clearRect(0, 0, cw, ch);
-
-    // تخطيط الخلفية: إذا كان هناك background image، نرسمها مكيفة كـ cover
-    if (currentBgImage) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        drawImageCover(ctx, img, 0, 0, cw, ch);
-        drawTextLayer(ctx, cw, ch);
-      };
-      img.onerror = () => {
-        // fallback إلى رسم النص مباشرة
-        drawTextLayer(ctx, cw, ch);
-      };
-      img.src = currentBgImage;
-      return;
-    }
-
-    // بدون خلفية صورة: نرسم مباشرة النص
-    drawTextLayer(ctx, cw, ch);
-  }
-
-  function drawTextLayer(ctx, cw, ch) {
-    // تحديد النص
-    const name = (decor.nameInput && decor.nameInput.value) ? decor.nameInput.value : "معاينة";
-    // اختيار الخط والحجم
-    const fontFamily = currentFont || DEFAULT_FONT;
-    // تحسين حجم الخط اعتماداً على طول النص وطول الكانڤاس
-    // قاعدة تقريبية:
-    const baseSize = Math.max(40, Math.min(220, Math.floor(cw / Math.max(6, name.length))));
-    ctx.font = `bold ${baseSize}px ${fontFamily}, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    const x = cw / 2;
-    const y = ch / 2;
-
-    // نوع التلوين
-    if (currentColorType === "solid") {
-      ctx.fillStyle = currentSolidColor || "#111";
-      ctx.fillText(name, x, y);
-    } else if (currentColorType === "gradient") {
-      // استخدم تدرج أفقى
-      const g = ctx.createLinearGradient(0, 0, cw, 0);
-      // currentGradient may be {from,to} or css string
-      if (currentGradient && currentGradient.from && currentGradient.to) {
-        g.addColorStop(0, currentGradient.from);
-        g.addColorStop(1, currentGradient.to);
-      } else {
-        // fallback gradient
-        g.addColorStop(0, "#ff4d4d");
-        g.addColorStop(1, "#ffcc00");
-      }
-      ctx.fillStyle = g;
-      ctx.fillText(name, x, y);
-    } else if (currentColorType === "overlay") {
-      // رسم تلبيسة (pattern) داخل نص: نرسم التلبيسة في كانڤاس مؤقت ثم نستخدم composite
-      if (!currentOverlaySrc) {
-        // fallback to solid
-        ctx.fillStyle = currentSolidColor || "#111";
-        ctx.fillText(name, x, y);
-        return;
-      }
-      // إنشاء canvas مؤقت بنفس الأبعاد
-      const tmp = document.createElement("canvas");
-      tmp.width = cw;
-      tmp.height = ch;
-      const tctx = tmp.getContext("2d");
-      // رسم التلبيسة كـ cover
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        drawImageCover(tctx, img, 0, 0, tmp.width, tmp.height);
-        // رسم نص باللون الأسود على مؤقت كقناع
-        tctx.globalCompositeOperation = "destination-in";
-        tctx.fillStyle = "#000";
-        tctx.font = ctx.font;
-        tctx.textAlign = "center";
-        tctx.textBaseline = "middle";
-        tctx.fillText(name, x, y);
-        // الآن ننسخ من tmp إلى ctx
-        ctx.drawImage(tmp, 0, 0);
-      };
-      img.onerror = () => {
-        // fallback
-        ctx.fillStyle = currentSolidColor || "#111";
-        ctx.fillText(name, x, y);
-      };
-      img.src = currentOverlaySrc;
-    } else {
-      // fallback
-      ctx.fillStyle = currentSolidColor || "#111";
-      ctx.fillText(name, x, y);
-    }
-  }
-
-  // ---------- دالة لتعديل وضع الصورة بحيث تغطي (cover) المنطقة ----------
-  function drawImageCover(ctx, img, dx, dy, dWidth, dHeight) {
-    const iw = img.width, ih = img.height;
-    if (iw === 0 || ih === 0) {
-      ctx.drawImage(img, dx, dy, dWidth, dHeight);
-      return;
-    }
-    const scale = Math.max(dWidth / iw, dHeight / ih);
-    const nw = iw * scale;
-    const nh = ih * scale;
-    const cx = (nw - dWidth) / 2;
-    const cy = (nh - dHeight) / 2;
-    ctx.drawImage(img, -cx, -cy, nw, nh);
-  }
-
-  // ---------- التعامل مع اختيار تلبيسة من المعرض (حدث مخصص) ----------
-  window.addEventListener("zkh-overlay-selected", (e) => {
-    try {
-      const detail = e.detail || {};
-      currentOverlaySrc = detail.src || null;
-      // ضبط نوع اللون تلقائياً إلى overlay
-      currentColorType = "overlay";
-      if (decor.colorTypeSelect) decor.colorTypeSelect.value = "overlay";
-      // اعادة رسم المعاينة
-      drawDecorPreviewOnCanvas();
-      // اجعل معرض التلبيسات ظاهرًا في الواجهة
-      if (decor.overlayGallery) {
-        // highlight selected (إن رغبت)
-      }
-    } catch (err) { console.warn(err); }
+  /* ---------- about & contact save/load ---------- */
+  qs('#save-about') && qs('#save-about').addEventListener('click', ()=>{
+    const txt = qs('#about-input').value || '';
+    localStorage.setItem(STORAGE_KEYS.ABOUT, txt);
+    renderAbout();
+    flash('تم حفظ نص اللمحة');
+  });
+  qs('#contact-add-btn') && qs('#contact-add-btn').addEventListener('click', ()=>{
+    const fileInput = qs('#contact-image'), linkInput = qs('#contact-link'), text = qs('#contact-input').value || '';
+    const file = fileInput.files[0];
+    if(!file || !linkInput.value) return flash('اختر صورة وضع رابطاً');
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const obj = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT) || '[]');
+      obj.push({img:reader.result, link: linkInput.value, text, ts:Date.now()});
+      localStorage.setItem(STORAGE_KEYS.CONTACT, JSON.stringify(obj));
+      fileInput.value=''; linkInput.value=''; qs('#contact-input').value='';
+      renderContact();
+      flash('تم إضافة صورة + رابط لقسم اتصل بنا');
+    };
+    reader.readAsDataURL(file);
   });
 
-  // ---------- ملء معرض التدرجات (UI) ----------
-  function populateGradientGallery() {
-    const container = decor.gradientGallery;
-    if (!container) return;
-    container.innerHTML = "";
-    const state = getState();
-    // إذا كانت هناك تدرجات محفوظة من لوحة التحكم نستخدمها، وإلا نستخدم defaultGradients
-    const grads = (state && state.gradients) ? state.gradients : defaultGradients;
-    grads.forEach((g, idx) => {
-      const el = document.createElement("div");
-      el.className = "grad-sample";
-      // g may be object with .css or a string
-      const css = typeof g === "string" ? g : (g.css || `linear-gradient(90deg, ${g.from}, ${g.to})`);
-      el.style.background = css;
-      el.title = (g.name || `تدرج ${idx+1}`);
-      el.style.height = "48px";
-      el.style.borderRadius = "8px";
-      el.style.cursor = "pointer";
-      el.style.border = "1px solid rgba(255,255,255,0.04)";
-      el.addEventListener("click", () => {
-        // set currentGradient
-        if (typeof g === "string") {
-          // we can't extract colors easily; just draw a CSS gradient in canvas by using two colors fallback
-          // but state may include from/to, handle that
-          currentGradient = { from: '#ff4d4d', to: '#ffcc00' };
-        } else {
-          currentGradient = { from: g.from, to: g.to };
-        }
-        currentColorType = "gradient";
-        if (decor.colorTypeSelect) decor.colorTypeSelect.value = "gradient";
-        drawDecorPreviewOnCanvas();
-      });
-      container.appendChild(el);
+  function renderAbout(){
+    const txt = localStorage.getItem(STORAGE_KEYS.ABOUT) || 'هذا التطبيق يقدم أدوات احترافية لتصميم الزخارف.';
+    aboutBox.innerHTML = `<div class="gold-box">${txt}</div>`;
+  }
+  renderAbout();
+
+  function renderContact(){
+    contactBox.innerHTML = '';
+    contactImages.innerHTML = '';
+    const arr = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT) || '[]');
+    arr.forEach(it=>{
+      const a = document.createElement('a'); a.href = it.link; a.target='_blank';
+      const img = document.createElement('img'); img.src = it.img; img.alt='';
+      img.style.width='100px'; img.style.height='100px'; img.style.objectFit='cover';
+      a.appendChild(img);
+      const caption = document.createElement('div'); caption.textContent = it.text || '';
+      contactImages.appendChild(a);
+      contactBox.appendChild(caption);
     });
   }
+  renderContact();
 
-  // ---------- ملء معرض التلبيسات من state ---------- 
-  function populateOverlayGalleryFromState() {
-    const container = decor.overlayGallery;
-    if (!container) return;
-    container.innerHTML = "";
-    const state = getState();
-    const arr = (state && state.overlays) ? state.overlays : [];
-    if (!arr.length) {
-      container.innerHTML = `<p class="small" style="opacity:.8;color:rgba(255,255,255,0.7)">لا توجد تلبيسات مضافة.</p>`;
-      return;
+  /* ---------- names simple search / use uploaded templates ---------- */
+  namesInput && namesInput.addEventListener('input', ()=>{
+    // if there are uploaded name styles as json with templates, update namesResults
+    // else, show simple variations (mock)
+    const val = namesInput.value.trim();
+    namesResults.innerHTML = '';
+    if(!val) return;
+    // quick mock variations
+    for(let i=0;i<10;i++){
+      const div = document.createElement('div'); div.className='card-text';
+      div.textContent = `${val} ${'-'.repeat(i%4)}`;
+      namesResults.appendChild(div);
     }
-    arr.forEach((src, idx) => {
-      const wrap = document.createElement("div");
-      wrap.className = "overlay-sample";
-      const img = document.createElement("img");
+  });
+
+  /* ---------- PRO: canvas render ---------- */
+  const ctx = proCanvas.getContext('2d');
+  const proState = {
+    type: 'solid',
+    color: '#ffd700',
+    gradient: gradients[0],
+    texture: null,
+    bg: null
+  };
+  // color type buttons
+  colorTypeBtns.forEach(b=>{
+    b.addEventListener('click', ()=> {
+      colorTypeBtns.forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const t = b.dataset.type;
+      proState.type = t;
+      solidPicker.classList.toggle('hidden', t!=='solid');
+      gradientPicker.classList.toggle('hidden', t!=='gradient');
+      texturePicker.classList.toggle('hidden', t!=='texture');
+    });
+  });
+  // solid color change
+  solidColor && solidColor.addEventListener('change', ()=> proState.color = solidColor.value);
+
+  // generate preview
+  proGenerate && proGenerate.addEventListener('click', async ()=> {
+    await renderProPreview();
+  });
+
+  async function renderProPreview(){
+    // clear
+    ctx.clearRect(0,0,proCanvas.width,proCanvas.height);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0,0,proCanvas.width,proCanvas.height);
+
+    // check background (from pro-bg-select options populated from textures)
+    if(proState.bg){
+      // draw bg if url
+      const img = await loadImage(proState.bg);
+      ctx.drawImage(img,0,0,proCanvas.width,proCanvas.height);
+    }
+
+    // draw name (either text or uploaded image)
+    if(proNameImage.files && proNameImage.files[0]){
+      // draw uploaded image centered
+      const f = proNameImage.files[0];
+      const url = URL.createObjectURL(f);
+      const img = await loadImage(url);
+      const scale = Math.min(proCanvas.width / img.width, proCanvas.height / img.height) * 0.7;
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img,(proCanvas.width-w)/2,(proCanvas.height-h)/2,w,h);
+    } else {
+      // use text
+      const text = proNameInput.value || 'اسمك';
+      // pick font
+      let ff = window.getComputedStyle(document.body).fontFamily || 'sans-serif';
+      const sel = proFontSelect.value;
+      if(sel) ff = sel; // for uploaded fonts we set value to font id
+      ctx.font = `bold 72px ${ff}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      // create fill style based on proState
+      if(proState.type === 'solid'){
+        ctx.fillStyle = proState.color || '#ffd700';
+        ctx.fillText(text, proCanvas.width/2, proCanvas.height/2);
+      } else if(proState.type === 'gradient'){
+        // create gradient (approx)
+        const g = ctx.createLinearGradient(0,0,proCanvas.width,0);
+        // we can't parse CSS gradient easily; use two stops from selected CSS (use pre-defined gradients variable top/bottom)
+        g.addColorStop(0,'#ffd700'); g.addColorStop(1,'#ffb400');
+        ctx.fillStyle = g;
+        ctx.fillText(text, proCanvas.width/2, proCanvas.height/2);
+      } else if(proState.type === 'texture'){
+        if(proState.texture){
+          const txtImg = await loadImage(proState.texture);
+          // create pattern
+          const pattern = ctx.createPattern(txtImg, 'repeat');
+          ctx.fillStyle = pattern;
+          ctx.fillText(text, proCanvas.width/2, proCanvas.height/2);
+        } else {
+          ctx.fillStyle = '#ffd700'; ctx.fillText(text, proCanvas.width/2, proCanvas.height/2);
+        }
+      }
+    }
+    flash('تم تحديث المعاينة');
+  }
+
+  function loadImage(src){
+    return new Promise((res, rej)=>{
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = ()=>res(img);
+      img.onerror = ()=>rej('error image');
       img.src = src;
-      img.style.width = "100%";
-      img.style.height = "72px";
-      img.style.objectFit = "cover";
-      img.style.cursor = "pointer";
-      img.addEventListener("click", () => {
-        // set overlay (same as custom event)
-        currentOverlaySrc = src;
-        currentColorType = "overlay";
-        if (decor.colorTypeSelect) decor.colorTypeSelect.value = "overlay";
-        drawDecorPreviewOnCanvas();
-      });
-      wrap.appendChild(img);
-      container.appendChild(wrap);
     });
   }
 
-  // ---------- تحميل/تصدير الصورة النهائية ----------
-  function exportDecorImage(options = {}) {
-    // options: { format: 'png'|'jpeg', width, height, filename }
-    const format = (options.format || "png").toLowerCase();
-    const w = options.width || decor.canvas.width || DEFAULT_CANVAS_W;
-    const h = options.height || decor.canvas.height || DEFAULT_CANVAS_H;
-    const filename = options.filename || `decor-result.${format === "jpeg" ? "jpg" : "png"}`;
-
-    // نريد رسم نسخة بالحجم المطلوب: نستخدم canvas مؤقت ونرسم محتويات المعاينة عليه
-    const tmp = document.createElement("canvas");
-    tmp.width = w;
-    tmp.height = h;
-    const tctx = tmp.getContext("2d");
-
-    // نعيد رسم الخلفية إن كانت موجودة
-    if (currentBgImage) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        drawImageCover(tctx, img, 0, 0, w, h);
-        drawTextToContext(tctx, w, h, format, filename);
-      };
-      img.onerror = () => {
-        // proceed to draw text
-        drawTextToContext(tctx, w, h, format, filename);
-      };
-      img.src = currentBgImage;
-    } else {
-      // خلفية شفافة (أو يمكن تعيين لون خلفية هنا)
-      tctx.clearRect(0, 0, w, h);
-      drawTextToContext(tctx, w, h, format, filename);
-    }
-  }
-
-  function drawTextToContext(tctx, w, h, format, filename) {
-    const name = (decor.nameInput && decor.nameInput.value) ? decor.nameInput.value : "معاينة";
-    const fontFamily = currentFont || DEFAULT_FONT;
-    const size = Math.max(30, Math.min(240, Math.floor(w / Math.max(6, name.length))));
-    tctx.font = `bold ${size}px ${fontFamily}, sans-serif`;
-    tctx.textAlign = "center";
-    tctx.textBaseline = "middle";
-
-    if (currentColorType === "solid") {
-      tctx.fillStyle = currentSolidColor || "#111";
-      tctx.fillText(name, w / 2, h / 2);
-      finishExport(tctx.canvas, format, filename);
-    } else if (currentColorType === "gradient") {
-      const g = tctx.createLinearGradient(0, 0, w, 0);
-      if (currentGradient && currentGradient.from && currentGradient.to) {
-        g.addColorStop(0, currentGradient.from);
-        g.addColorStop(1, currentGradient.to);
-      } else {
-        g.addColorStop(0, "#ff4d4d");
-        g.addColorStop(1, "#ffcc00");
-      }
-      tctx.fillStyle = g;
-      tctx.fillText(name, w / 2, h / 2);
-      finishExport(tctx.canvas, format, filename);
-    } else if (currentColorType === "overlay") {
-      if (!currentOverlaySrc) {
-        tctx.fillStyle = currentSolidColor || "#111";
-        tctx.fillText(name, w / 2, h / 2);
-        finishExport(tctx.canvas, format, filename);
-        return;
-      }
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        // draw overlay cover to temp canvas
-        const overlayCanvas = document.createElement("canvas");
-        overlayCanvas.width = w;
-        overlayCanvas.height = h;
-        const octx = overlayCanvas.getContext("2d");
-        drawImageCover(octx, img, 0, 0, w, h);
-        // mask overlay with text
-        octx.globalCompositeOperation = "destination-in";
-        octx.fillStyle = "#000";
-        octx.font = tctx.font;
-        octx.textAlign = "center";
-        octx.textBaseline = "middle";
-        octx.fillText(name, w / 2, h / 2);
-        // finally draw overlayCanvas onto tctx
-        tctx.drawImage(overlayCanvas, 0, 0);
-        finishExport(tctx.canvas, format, filename);
-      };
-      img.onerror = () => {
-        tctx.fillStyle = currentSolidColor || "#111";
-        tctx.fillText(name, w / 2, h / 2);
-        finishExport(tctx.canvas, format, filename);
-      };
-      img.src = currentOverlaySrc;
-    } else {
-      tctx.fillStyle = currentSolidColor || "#111";
-      tctx.fillText(name, w / 2, h / 2);
-      finishExport(tctx.canvas, format, filename);
-    }
-  }
-
-  function finishExport(canvasEl, format, filename) {
-    if (format === "png") {
-      const dataURL = canvasEl.toDataURL("image/png");
-      downloadDataURL(dataURL, filename);
-    } else if (format === "jpeg" || format === "jpg") {
-      const dataURL = canvasEl.toDataURL("image/jpeg", 0.92);
-      downloadDataURL(dataURL, filename);
-    } else {
-      // default PNG
-      const dataURL = canvasEl.toDataURL("image/png");
-      downloadDataURL(dataURL, filename);
-    }
-  }
-
-  // ---------- التهيئة (ربط الأحداث والملء) ----------
-  function initDecorModule() {
-    collectDecorRefs();
-
-    // set initial values from state
-    const state = getState();
-    if (state && state.appearance) {
-      currentBgImage = state.appearance.bgImage || currentBgImage;
-      currentFont = state.appearance.font || currentFont;
-    }
-
-    // populate font select (defaults + uploaded)
-    populateFontSelect();
-
-    // populate gradient gallery and overlay gallery
-    populateGradientGallery();
-    populateOverlayGalleryFromState();
-
-    // handlers
-    if (decor.nameInput) {
-      decor.nameInput.addEventListener("input", debounce(() => {
-        drawDecorPreviewOnCanvas();
-      }, 120));
-    }
-
-    if (decor.fontSelect) {
-      decor.fontSelect.addEventListener("change", (e) => {
-        currentFont = e.target.value || currentFont;
-        drawDecorPreviewOnCanvas();
-      });
-    }
-
-    if (decor.colorTypeSelect) {
-      decor.colorTypeSelect.addEventListener("change", (e) => {
-        currentColorType = e.target.value || "solid";
-        // show/hide UI parts (color picker / gradient / overlay gallery)
-        if (decor.solidColorInput) {
-          if (currentColorType === "solid") {
-            decor.solidColorInput.parentElement.classList.remove("hidden");
-          } else {
-            decor.solidColorInput.parentElement.classList.add("hidden");
-          }
-        }
-        if (decor.gradientGallery) {
-          if (currentColorType === "gradient") {
-            decor.gradientGallery.classList.remove("hidden");
-          } else {
-            decor.gradientGallery.classList.add("hidden");
-          }
-        }
-        if (decor.overlayGallery) {
-          if (currentColorType === "overlay") {
-            decor.overlayGallery.classList.remove("hidden");
-          } else {
-            decor.overlayGallery.classList.add("hidden");
-          }
-        }
-        drawDecorPreviewOnCanvas();
-      });
-    }
-
-    if (decor.solidColorInput) {
-      decor.solidColorInput.addEventListener("input", (e) => {
-        currentSolidColor = e.target.value;
-        if (currentColorType === "solid") drawDecorPreviewOnCanvas();
-      });
-    }
-
-    // decor image input (user uploads an image of the name to preview)
-    if (decor.imageInput) {
-      decor.imageInput.addEventListener("change", async (e) => {
-        // if user supplies an image of name, we set it as overlaySrc and set type=overlay
-        const f = (e.target.files && e.target.files[0]) || null;
-        if (!f) return;
-        try {
-          const data = await fileToDataURL(f);
-          currentOverlaySrc = data;
-          currentColorType = "overlay";
-          if (decor.colorTypeSelect) decor.colorTypeSelect.value = "overlay";
-          drawDecorPreviewOnCanvas();
-        } catch (err) {
-          console.warn("decor image upload err", err);
-        }
-      });
-    }
-
-    // background change button (يمكن فتح حوار لاختيار خلفية من home images)
-    if (decor.bgBtn) {
-      decor.bgBtn.addEventListener("click", () => {
-        // نعرض نافذة اختيار: نأخذ أول صورة من home images إن وُجدت
-        const st = getState();
-        if (st && st.homeImages && st.homeImages.length) {
-          currentBgImage = st.homeImages[0].src;
-          drawDecorPreviewOnCanvas();
-          alert("تم تعيين صورة الخلفية من أول صورة في الصفحة الرئيسية.");
-        } else {
-          alert("لا توجد صور في الصفحة الرئيسية. أضف صورًا من لوحة التحكم أولًا.");
-        }
-      });
-    }
-
-    // تحميل الصورة
-    if (decor.downloadBtn) {
-      decor.downloadBtn.addEventListener("click", () => {
-        // نعرض خيارات بسيطة: الحجم / التنسيق
-        const fmt = prompt("اختر الصيغة (png/jpg)", "png") || "png";
-        const size = prompt("الحجم (small/medium/large/custom)", "medium") || "medium";
-        let w = 1200, h = 600;
-        if (size === "small") { w = 640; h = 360; }
-        else if (size === "large") { w = 2400; h = 1200; }
-        else if (size === "custom") {
-          const wIn = parseInt(prompt("العرض px", "1200") || "1200", 10);
-          const hIn = parseInt(prompt("الارتفاع px", "600") || "600", 10);
-          if (!isNaN(wIn) && !isNaN(hIn)) { w = wIn; h = hIn; }
-        }
-        exportDecorImage({ format: fmt, width: w, height: h, filename: `decor-${Date.now()}.${fmt === "jpg" ? "jpg" : "png"}` });
-      });
-    }
-
-    // رسم أولي
-    drawDecorPreviewOnCanvas();
-  }
-
-  function populateFontSelect() {
-    const sel = decor.fontSelect;
-    if (!sel) return;
-    const defaults = ["Amiri", "Cairo", "Tajawal", "Reem Kufi", "Changa"];
-    sel.innerHTML = `<option value="">اختيار الخط</option>`;
-    defaults.forEach(f => {
-      const opt = document.createElement("option");
-      opt.value = f; opt.textContent = f;
-      sel.appendChild(opt);
-    });
-    // إضافة خطوط مرفوعة من state.proFonts
-    const st = getState();
-    if (st && st.proFonts && st.proFonts.length) {
-      st.proFonts.forEach(ff => {
-        const opt = document.createElement("option");
-        opt.value = ff.name; opt.textContent = ff.name;
-        sel.appendChild(opt);
-      });
-    }
-    // تحديد القيمة الافتراضية
-    sel.value = currentFont || "";
-  }
-
-  // ---------- استمع لحدث حفظ الحالة الخارجي لتحديث المعارض عند الحاجة ----------
-  window.addEventListener("storage", (e) => {
-    if (e.key === STORAGE_KEY) {
-      populateOverlayGalleryFromState();
-      populateGradientGallery();
-      populateFontSelect();
-      // إعادة رسم المعاينة
-      drawDecorPreviewOnCanvas();
-    }
+  // download canvas
+  proDownload && proDownload.addEventListener('click', ()=> {
+    const mime = 'image/png';
+    const url = proCanvas.toDataURL(mime);
+    const a = document.createElement('a'); a.href = url; a.download = 'decor_result.png'; a.click();
   });
 
-  // ---------- تهيئة عند جاهزية الـ DOM ----------
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initDecorModule);
-  } else {
-    initDecorModule();
+  // initial pro textures & fonts from localStorage (populate selects)
+  function populateProOptions(){
+    // pro fonts (uploaded)
+    const fonts = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_FONTS) || '[]');
+    proFontSelect.innerHTML = '<option value="">(اختيار افتراضي)</option>';
+    fonts.forEach(f=> {
+      const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; proFontSelect.appendChild(o);
+      // also add to fontList for application if desired
+    });
+    // textures
+    const tex = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_TEXTURES) || '[]');
+    proBgSelect.innerHTML = '<option value="">(لا توجد خلفية)</option>';
+    tex.forEach(t=> {
+      const o = document.createElement('option'); o.value = t.url; o.textContent = t.name; proBgSelect.appendChild(o);
+    });
+    renderTextureGrid(); // grid visuals
+  }
+  populateProOptions();
+
+  proBgSelect && proBgSelect.addEventListener('change', ()=> {
+    proState.bg = proBgSelect.value || null;
+  });
+
+  // set texture selection via proState inside textureGrid click handlers earlier
+
+  /* ---------- small helpers ---------- */
+  function flash(msg, dur=2000){
+    let el = qs('#__flash__');
+    if(!el){
+      el = document.createElement('div'); el.id='__flash__';
+      el.style.cssText='position:fixed;left:50%;top:12%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:var(--gold);padding:8px 12px;border-radius:8px;z-index:99999;font-weight:700';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg; el.style.opacity='1';
+    clearTimeout(el._t); el._t = setTimeout(()=> el.style.opacity='0', dur);
   }
 
-  // expose for debug
-  window._zakhrafa_draw = drawDecorPreviewOnCanvas;
-  window._zakhrafa_setOverlay = (src) => { currentOverlaySrc = src; currentColorType = "overlay"; drawDecorPreviewOnCanvas(); };
+  /* ---------- utility download blob ---------- */
+  function downloadBlob(dataUrl, filename){
+    const a = document.createElement('a'); a.href = dataUrl; a.download = filename; a.click();
+  }
 
-  /* ==========================
-     نهاية الجزء الثاني
-     ========================== */
-})();
+  /* ---------- drag & reorder sections (basic) ---------- */
+  // (we provided edit/delete via prompt earlier; full drag-drop is a future enhancement)
+
+  /* ---------- initial render on load ---------- */
+  renderHomeGallery();
+  renderContact();
+  renderAbout();
+  renderNameStyles();
+
+  /* ---------- export functions (developer use) ---------- */
+  window.__decorExport = function(){
+    return {
+      home: JSON.parse(localStorage.getItem(STORAGE_KEYS.HOME_IMAGES) || '[]'),
+      pro: {
+        fonts: JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_FONTS) || '[]'),
+        textures: JSON.parse(localStorage.getItem(STORAGE_KEYS.PRO_TEXTURES) || '[]')
+      },
+      nameStyles: JSON.parse(localStorage.getItem(STORAGE_KEYS.NAME_STYLES) || '[]'),
+      about: localStorage.getItem(STORAGE_KEYS.ABOUT) || '',
+      contact: JSON.parse(localStorage.getItem(STORAGE_KEYS.CONTACT) || '[]'),
+      sections: JSON.parse(localStorage.getItem(STORAGE_KEYS.SECTIONS) || '[]')
+    }
+  };
+
+}); // DOMContentLoaded end
